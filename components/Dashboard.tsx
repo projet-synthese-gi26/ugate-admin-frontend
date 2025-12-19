@@ -52,7 +52,12 @@ const StatCard = ({ title, value, change, icon: Icon, trend, gradient, percentag
   </Card>
 );
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onChangeView?: (view: string) => void;
+  onTriggerAction?: (action: string) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ onChangeView, onTriggerAction }) => {
   const [timeRange, setTimeRange] = useState('30d');
   
   const categoryData = [
@@ -88,11 +93,83 @@ export const Dashboard: React.FC = () => {
     { name: 'Networking Été', attendees: 67, revenue: '3,200€', status: 'Planifié', trend: 'down' },
   ];
 
+  const handleGenerateReport = () => {
+    const reportData = {
+      period: timeRange,
+      totalMembers: 2543,
+      activeEvents: 24,
+      monthlyRevenue: 45200,
+      engagementRate: 68,
+      generatedAt: new Date().toLocaleString('fr-FR')
+    };
+    
+    const reportContent = `
+RAPPORT MENSUEL - UGATE ADMIN
+================================
+Généré le: ${reportData.generatedAt}
+Période: ${timeRange === '30d' ? '30 derniers jours' : timeRange === '7d' ? '7 derniers jours' : timeRange === '90d' ? '90 derniers jours' : 'Cette année'}
+
+STATISTIQUES PRINCIPALES
+------------------------
+Membres Totaux: ${reportData.totalMembers}
+Événements Actifs: ${reportData.activeEvents}
+Revenus Mensuels: ${reportData.monthlyRevenue}€
+Taux d'Engagement: ${reportData.engagementRate}%
+
+PERFORMANCE
+-----------
+✓ Croissance des adhésions: +12.5%
+✓ Nouveaux événements créés: +8
+✓ Augmentation des revenus: +18.2%
+
+Ce rapport a été généré automatiquement par UGate Admin.
+    `.trim();
+    
+    const blob = new Blob([reportContent], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rapport-mensuel-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const quickActions = [
-    { icon: Calendar, label: 'Créer Événement', color: 'from-blue-500 to-blue-600', action: () => {} },
-    { icon: ShoppingBag, label: 'Ajouter Produit', color: 'from-emerald-500 to-emerald-600', action: () => {} },
-    { icon: Users, label: 'Nouvelle Admission', color: 'from-purple-500 to-purple-600', action: () => {} },
-    { icon: FileText, label: 'Rapport Mensuel', color: 'from-orange-500 to-orange-600', action: () => {} },
+    { 
+      icon: Calendar, 
+      label: 'Créer Événement', 
+      color: 'from-blue-500 to-blue-600', 
+      action: () => {
+        onChangeView?.('events');
+        onTriggerAction?.('create-event');
+      }
+    },
+    { 
+      icon: ShoppingBag, 
+      label: 'Ajouter Produit', 
+      color: 'from-emerald-500 to-emerald-600', 
+      action: () => {
+        onChangeView?.('products');
+        onTriggerAction?.('create-product');
+      }
+    },
+    { 
+      icon: Users, 
+      label: 'Nouvelle Admission', 
+      color: 'from-purple-500 to-purple-600', 
+      action: () => {
+        onChangeView?.('admissions');
+        onTriggerAction?.('create-admission');
+      }
+    },
+    { 
+      icon: FileText, 
+      label: 'Rapport Mensuel', 
+      color: 'from-orange-500 to-orange-600', 
+      action: handleGenerateReport
+    },
   ];
 
   return (

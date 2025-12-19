@@ -10,19 +10,29 @@ import { Admissions } from '@/components/Admissions';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState('dashboard');
+  const [triggerAction, setTriggerAction] = useState<string | null>(null);
+
+  const handleChangeView = (view: string) => {
+    setCurrentView(view);
+    setTriggerAction(null);
+  };
+
+  const handleTriggerAction = (action: string) => {
+    setTriggerAction(action);
+  };
 
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onChangeView={handleChangeView} onTriggerAction={handleTriggerAction} />;
       case 'events':
-        return <Events />;
+        return <Events autoOpenCreate={triggerAction === 'create-event'} />;
       case 'products':
-        return <Products />;
+        return <Products autoOpenCreate={triggerAction === 'create-product'} />;
       case 'services':
         return <Services />;
       case 'admissions':
-        return <Admissions />;
+        return <Admissions autoOpenCreate={triggerAction === 'create-admission'} />;
       case 'settings':
         return (
           <div className="flex flex-col items-center justify-center h-[50vh] text-center">

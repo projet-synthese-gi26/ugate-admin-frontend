@@ -10,8 +10,12 @@ import { MOCK_EVENTS } from '@/lib/constants';
 import { Event } from '@/lib/types';
 import Image from 'next/image';
 
-export const Events: React.FC = () => {
-  const [isCreating, setIsCreating] = useState(false);
+interface EventsProps {
+  autoOpenCreate?: boolean;
+}
+
+export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
+  const [isCreating, setIsCreating] = useState(autoOpenCreate);
   const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);

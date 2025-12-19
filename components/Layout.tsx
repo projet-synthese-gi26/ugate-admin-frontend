@@ -74,7 +74,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
               <span className="text-lg font-bold text-white tracking-tight block">
                 UGate Admin
               </span>
-              <span className="text-xs text-blue-100">Pro Dashboard</span>
+              <span className="text-xs text-blue-100">Dashboard</span>
             </div>
             <button 
               className="ml-auto lg:hidden text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
@@ -132,17 +132,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
           </div>
 
           <div className="p-4 border-t border-gray-100/50 bg-gradient-to-br from-gray-50 to-white">
-            <div className="bg-white rounded-xl p-4 shadow-lg border border-gray-100 mb-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                <span className="text-xs font-bold text-gray-900">Version Pro</span>
-              </div>
-              <p className="text-xs text-gray-600 mb-3">Débloquez toutes les fonctionnalités premium</p>
-              <button className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white text-xs font-bold py-2 rounded-lg hover:shadow-lg transition-all">
-                Mettre à niveau
-              </button>
-            </div>
-
             <button className="flex w-full items-center p-3 rounded-xl hover:bg-gray-100 transition-all group border border-gray-200 bg-white shadow-sm">
               <div className="relative">
                 <Image 
@@ -220,10 +209,6 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
 
             <div className="h-8 w-px bg-gray-200 hidden md:block" />
 
-            <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-xl shadow-lg">
-              <Zap className="w-4 h-4" />
-              <span className="text-sm font-bold hidden sm:block">Pro</span>
-            </div>
           </div>
         </header>
 

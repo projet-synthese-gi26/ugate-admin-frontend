@@ -9,10 +9,14 @@ import { MOCK_ADMISSIONS } from '@/lib/constants';
 import { Admission } from '@/lib/types';
 import Image from 'next/image';
 
-export const Admissions: React.FC = () => {
+interface AdmissionsProps {
+  autoOpenCreate?: boolean;
+}
+
+export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }) => {
   const [admissions, setAdmissions] = useState<Admission[]>(MOCK_ADMISSIONS);
   const [selectedAdmission, setSelectedAdmission] = useState<Admission | null>(null);
-  const [activeTab, setActiveTab] = useState<'pending' | 'accepted' | 'rejected'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'accepted' | 'rejected'>(autoOpenCreate ? 'pending' : 'pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotes, setShowNotes] = useState(false);
   const [note, setNote] = useState('');

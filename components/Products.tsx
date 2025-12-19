@@ -20,11 +20,15 @@ interface ProductHistory {
   user: string;
 }
 
-export const Products: React.FC = () => {
+interface ProductsProps {
+  autoOpenCreate?: boolean;
+}
+
+export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) => {
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(autoOpenCreate);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStock, setFilterStock] = useState('all');
