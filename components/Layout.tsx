@@ -30,6 +30,7 @@ interface LayoutProps {
   children: React.ReactNode;
   currentView: string;
   onChangeView: (view: string) => void;
+  userEmail?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -41,7 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'settings', label: 'Paramètres', icon: Settings },
 ];
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeView }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeView, userEmail = 'admin@ugate.com' }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -53,7 +54,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30 flex font-sans text-gray-900">
+    <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
       {isMobileMenuOpen && (
         <div 
           className="fixed inset-0 bg-gray-900/60 z-40 lg:hidden backdrop-blur-sm transition-opacity"
@@ -66,9 +67,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="h-full flex flex-col">
-          <div className="h-20 flex items-center px-6 border-b border-gray-100/50 bg-gradient-to-r from-blue-600 to-purple-600">
+          <div className="h-20 flex items-center px-6 border-b border-gray-200 bg-[#1877F2]">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center mr-3 shadow-lg">
-              <span className="text-transparent bg-clip-text bg-gradient-to-br from-blue-600 to-purple-600 font-bold text-xl">U</span>
+              <span className="text-[#1877F2] font-bold text-xl">U</span>
             </div>
             <div>
               <span className="text-lg font-bold text-white tracking-tight block">
@@ -99,14 +100,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
                   className={`
                     w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group relative overflow-hidden
                     ${isActive 
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/30' 
+                      ? 'bg-[#1877F2] text-white shadow-sm' 
                       : 'text-gray-700 hover:bg-gray-100'
                     }
                   `}
                 >
-                  {isActive && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-500 opacity-20 animate-pulse"></div>
-                  )}
                   <div className="flex items-center relative z-10">
                     <Icon className={`w-5 h-5 mr-3 transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-gray-500'}`} />
                     {item.label}
@@ -114,7 +112,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
                   {item.count && (
                     <span className={`
                       flex h-6 min-w-[24px] items-center justify-center rounded-full px-2 text-xs font-bold relative z-10
-                      ${isActive ? 'bg-white text-blue-600' : 'bg-red-500 text-white'}
+                      ${isActive ? 'bg-white text-[#1877F2]' : 'bg-red-500 text-white'}
                     `}>
                       {item.count}
                     </span>
@@ -125,13 +123,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
 
             <div className="pt-4 mt-4 border-t border-gray-200">
               <button className="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-all group">
-                <HelpCircle className="w-5 h-5 mr-3 text-gray-500 group-hover:text-blue-600 transition-colors" />
+                <HelpCircle className="w-5 h-5 mr-3 text-gray-500 group-hover:text-[#1877F2] transition-colors" />
                 Centre d&apos;aide
               </button>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-100/50 bg-gradient-to-br from-gray-50 to-white">
+          <div className="p-4 border-t border-gray-200 bg-white">
             <button className="flex w-full items-center p-3 rounded-xl hover:bg-gray-100 transition-all group border border-gray-200 bg-white shadow-sm">
               <div className="relative">
                 <Image 
@@ -145,7 +143,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
               </div>
               <div className="ml-3 flex-1 text-left overflow-hidden">
                 <p className="text-sm font-bold text-gray-900 truncate">Admin Principal</p>
-                <p className="text-xs text-gray-500 truncate">admin@ugate.com</p>
+                <p className="text-xs text-gray-500 truncate">{userEmail}</p>
               </div>
               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
             </button>
@@ -164,7 +162,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
             </button>
             
             <div className="hidden md:flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-[#1877F2] rounded-xl flex items-center justify-center shadow-sm">
                 <LayoutDashboard className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -182,11 +180,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
 
           <div className="flex items-center gap-3">
             <div className="hidden lg:block relative group">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 group-focus-within:text-blue-500 transition-colors" />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 group-focus-within:text-[#1877F2] transition-colors" />
               <input 
                 type="text" 
                 placeholder="Recherche rapide... (Ctrl+K)" 
-                className="pl-10 pr-4 py-2.5 w-80 bg-gray-50 border border-gray-200 rounded-xl text-sm transition-all outline-none focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:w-96"
+                className="pl-10 pr-4 py-2.5 w-80 bg-gray-100 border border-gray-200 rounded-lg text-sm transition-all outline-none focus:bg-white focus:border-[#1877F2] focus:ring-2 focus:ring-[#1877F2]/20 focus:w-96"
               />
             </div>
             
@@ -235,7 +233,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
               ))}
             </div>
             <div className="p-3 border-t border-gray-100">
-              <button className="w-full text-center text-sm font-semibold text-blue-600 hover:text-blue-700 py-2">
+              <button className="w-full text-center text-sm font-semibold text-[#1877F2] hover:text-[#1465D6] py-2">
                 Voir toutes les notifications
               </button>
             </div>
@@ -253,9 +251,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
             <div className="flex items-center gap-6">
               <span>© 2024 UGate Admin. Tous droits réservés.</span>
               <div className="flex items-center gap-4">
-                <a href="#" className="hover:text-blue-600 transition-colors">Confidentialité</a>
-                <a href="#" className="hover:text-blue-600 transition-colors">Conditions</a>
-                <a href="#" className="hover:text-blue-600 transition-colors">Support</a>
+                <a href="#" className="hover:text-[#1877F2] transition-colors">Confidentialité</a>
+                <a href="#" className="hover:text-[#1877F2] transition-colors">Conditions</a>
+                <a href="#" className="hover:text-[#1877F2] transition-colors">Support</a>
               </div>
             </div>
             <div className="flex items-center gap-2">

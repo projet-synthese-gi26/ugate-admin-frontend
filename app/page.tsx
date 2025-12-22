@@ -7,8 +7,13 @@ import { Events } from '@/components/Events';
 import { Products } from '@/components/Products';
 import { Services } from '@/components/Services';
 import { Admissions } from '@/components/Admissions';
+import { Login } from '@/components/Login';
+import { Register } from '@/components/Register';
 
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [currentView, setCurrentView] = useState('dashboard');
   const [triggerAction, setTriggerAction] = useState<string | null>(null);
 
@@ -19,6 +24,23 @@ export default function Home() {
 
   const handleTriggerAction = (action: string) => {
     setTriggerAction(action);
+  };
+
+  const handleLogin = (email: string) => {
+    setUserEmail(email);
+    setIsAuthenticated(true);
+  };
+
+  const handleRegister = () => {
+    setAuthView('login');
+  };
+
+  const handleSwitchToRegister = () => {
+    setAuthView('register');
+  };
+
+  const handleSwitchToLogin = () => {
+    setAuthView('login');
   };
 
   const renderView = () => {
@@ -48,8 +70,15 @@ export default function Home() {
     }
   };
 
+  if (!isAuthenticated) {
+    if (authView === 'login') {
+      return <Login onLogin={handleLogin} onSwitchToRegister={handleSwitchToRegister} />;
+    }
+    return <Register onRegister={handleRegister} onSwitchToLogin={handleSwitchToLogin} />;
+  }
+
   return (
-    <Layout currentView={currentView} onChangeView={setCurrentView}>
+    <Layout currentView={currentView} onChangeView={setCurrentView} userEmail={userEmail}>
       {renderView()}
     </Layout>
   );

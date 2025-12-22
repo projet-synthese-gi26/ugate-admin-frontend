@@ -61,10 +61,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ onChangeView, onTriggerAct
   const [timeRange, setTimeRange] = useState('30d');
   
   const categoryData = [
-    { name: 'Événements', value: 400, color: '#3B82F6' },
-    { name: 'Produits', value: 300, color: '#10B981' },
-    { name: 'Services', value: 200, color: '#F59E0B' },
-    { name: 'Adhésions', value: 100, color: '#EF4444' },
+    { name: 'Événements', value: 400, color: '#1877F2' },
+    { name: 'Produits', value: 300, color: '#6B7280' },
+    { name: 'Services', value: 200, color: '#9CA3AF' },
+    { name: 'Adhésions', value: 100, color: '#D1D5DB' },
   ];
 
   const revenueData = [
@@ -140,7 +140,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
     { 
       icon: Calendar, 
       label: 'Créer Événement', 
-      color: 'from-blue-500 to-blue-600', 
+      color: 'bg-[#1877F2]', 
       action: () => {
         onChangeView?.('events');
         onTriggerAction?.('create-event');
@@ -149,7 +149,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
     { 
       icon: ShoppingBag, 
       label: 'Ajouter Produit', 
-      color: 'from-emerald-500 to-emerald-600', 
+      color: 'bg-[#1877F2]', 
       action: () => {
         onChangeView?.('products');
         onTriggerAction?.('create-product');
@@ -158,7 +158,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
     { 
       icon: Users, 
       label: 'Nouvelle Admission', 
-      color: 'from-purple-500 to-purple-600', 
+      color: 'bg-[#1877F2]', 
       action: () => {
         onChangeView?.('admissions');
         onTriggerAction?.('create-admission');
@@ -167,7 +167,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
     { 
       icon: FileText, 
       label: 'Rapport Mensuel', 
-      color: 'from-orange-500 to-orange-600', 
+      color: 'bg-gray-600', 
       action: handleGenerateReport
     },
   ];
@@ -177,7 +177,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
       {/* Header avec actions rapides */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
             Tableau de Bord
           </h1>
           <p className="text-gray-500 mt-1 flex items-center gap-2">
@@ -189,7 +189,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
           <select 
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
-            className="bg-white border border-gray-200 text-gray-700 text-sm rounded-xl px-4 py-2.5 outline-none shadow-sm cursor-pointer hover:border-blue-500 hover:shadow-md transition-all font-medium"
+            className="bg-white border border-gray-200 text-gray-700 text-sm rounded-lg px-4 py-2.5 outline-none shadow-sm cursor-pointer hover:border-[#1877F2] hover:shadow-md transition-all font-medium"
           >
             <option value="7d">7 derniers jours</option>
             <option value="30d">30 derniers jours</option>
@@ -211,11 +211,10 @@ Ce rapport a été généré automatiquement par UGate Admin.
           <button
             key={idx}
             onClick={action.action}
-            className="group relative overflow-hidden bg-white rounded-2xl p-6 border border-gray-100 hover:border-transparent hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+            className="group relative overflow-hidden bg-white rounded-xl p-6 border border-gray-200 hover:border-[#1877F2] hover:shadow-lg transition-all duration-300"
           >
-            <div className={`absolute inset-0 bg-gradient-to-br ${action.color} opacity-0 group-hover:opacity-100 transition-opacity`}></div>
             <div className="relative flex flex-col items-center gap-3">
-              <div className={`p-3 rounded-xl bg-gradient-to-br ${action.color} shadow-lg group-hover:scale-110 transition-transform`}>
+              <div className={`p-3 rounded-xl ${action.color} shadow-sm group-hover:scale-110 transition-transform`}>
                 <action.icon className="w-6 h-6 text-white" />
               </div>
               <span className="text-sm font-semibold text-gray-900 group-hover:text-white transition-colors">
@@ -234,7 +233,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
           change="+12.5%" 
           icon={Users} 
           trend="up" 
-          gradient="from-blue-500 to-blue-600"
+          gradient="from-[#1877F2] to-[#1877F2]"
           percentage={85}
         />
         <StatCard 
@@ -243,7 +242,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
           change="+8" 
           icon={Calendar} 
           trend="up" 
-          gradient="from-emerald-500 to-emerald-600"
+          gradient="from-[#1877F2] to-[#1877F2]"
           percentage={72}
         />
         <StatCard 
@@ -252,7 +251,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
           change="+18.2%" 
           icon={DollarSign} 
           trend="up" 
-          gradient="from-purple-500 to-purple-600"
+          gradient="from-[#1877F2] to-[#1877F2]"
           percentage={91}
         />
         <StatCard 
@@ -261,7 +260,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
           change="-2.1%" 
           icon={TrendingUp} 
           trend="down" 
-          gradient="from-orange-500 to-orange-600"
+          gradient="from-gray-600 to-gray-600"
           percentage={68}
         />
       </div>
@@ -274,7 +273,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
             <CardHeader className="border-b border-gray-100">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-blue-600" />
+                  <TrendingUp className="w-5 h-5 text-[#1877F2]" />
                   Croissance des Adhésions
                 </CardTitle>
                 <div className="flex gap-2">
@@ -289,12 +288,12 @@ Ce rapport a été généré automatiquement par UGate Admin.
                   <AreaChart data={CHART_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorNew" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#1877F2" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#1877F2" stopOpacity={0}/>
                       </linearGradient>
                       <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#6B7280" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#6B7280" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
@@ -322,20 +321,20 @@ Ce rapport a été généré automatiquement par UGate Admin.
                     <Area 
                       type="monotone" 
                       dataKey="new" 
-                      stroke="#3B82F6" 
+                      stroke="#1877F2" 
                       strokeWidth={3} 
                       fillOpacity={1} 
                       fill="url(#colorNew)" 
-                      activeDot={{ r: 8, strokeWidth: 0, fill: '#2563EB' }}
+                      activeDot={{ r: 8, strokeWidth: 0, fill: '#1877F2' }}
                     />
                     <Area 
                       type="monotone" 
                       dataKey="active" 
-                      stroke="#10B981" 
+                      stroke="#6B7280" 
                       strokeWidth={3} 
                       fillOpacity={1} 
                       fill="url(#colorActive)" 
-                      activeDot={{ r: 8, strokeWidth: 0, fill: '#059669' }}
+                      activeDot={{ r: 8, strokeWidth: 0, fill: '#6B7280' }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -348,7 +347,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
         <Card className="border-0 shadow-xl">
           <CardHeader className="border-b border-gray-100">
             <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-purple-600" />
+              <Target className="w-5 h-5 text-[#1877F2]" />
               Distribution
             </CardTitle>
           </CardHeader>
@@ -394,7 +393,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
         <Card className="border-0 shadow-xl">
           <CardHeader className="border-b border-gray-100">
             <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-emerald-600" />
+              <Activity className="w-5 h-5 text-[#1877F2]" />
               Performance Hebdomadaire
             </CardTitle>
           </CardHeader>
@@ -414,9 +413,9 @@ Ce rapport a été généré automatiquement par UGate Admin.
                     }}
                   />
                   <Legend />
-                  <Bar dataKey="events" fill="#3B82F6" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="products" fill="#10B981" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="services" fill="#F59E0B" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="events" fill="#1877F2" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="products" fill="#6B7280" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="services" fill="#9CA3AF" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -428,7 +427,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
           <CardHeader className="border-b border-gray-100">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-yellow-500" />
+                <Star className="w-5 h-5 text-[#1877F2]" />
                 Top Événements
               </CardTitle>
               <Button variant="ghost" size="sm">Voir tout</Button>
@@ -437,13 +436,13 @@ Ce rapport a été généré automatiquement par UGate Admin.
           <CardContent className="pt-6">
             <div className="space-y-4">
               {topEvents.map((event, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-gray-50 to-white hover:from-blue-50 hover:to-white transition-all group cursor-pointer border border-gray-100">
+                <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-blue-50 transition-all group cursor-pointer border border-gray-200">
                   <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold shadow-lg">
+                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[#1877F2] text-white font-bold shadow-sm">
                       {idx + 1}
                     </div>
                     <div>
-                      <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{event.name}</h4>
+                      <h4 className="font-semibold text-gray-900 group-hover:text-[#1877F2] transition-colors">{event.name}</h4>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="text-xs text-gray-500 flex items-center gap-1">
                           <Users className="w-3 h-3" />
@@ -476,7 +475,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
           <Card className="border-0 shadow-xl">
             <CardHeader className="border-b border-gray-100">
               <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-green-600" />
+                <DollarSign className="w-5 h-5 text-[#1877F2]" />
                 Analyse Financière
               </CardTitle>
             </CardHeader>
@@ -496,9 +495,9 @@ Ce rapport a été généré automatiquement par UGate Admin.
                       }}
                     />
                     <Legend />
-                    <Line type="monotone" dataKey="revenue" stroke="#10B981" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
+                    <Line type="monotone" dataKey="revenue" stroke="#1877F2" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
                     <Line type="monotone" dataKey="expenses" stroke="#EF4444" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                    <Line type="monotone" dataKey="profit" stroke="#3B82F6" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
+                    <Line type="monotone" dataKey="profit" stroke="#6B7280" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -510,27 +509,27 @@ Ce rapport a été généré automatiquement par UGate Admin.
         <Card className="border-0 shadow-xl">
           <CardHeader className="border-b border-gray-100">
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-600" />
+              <Clock className="w-5 h-5 text-[#1877F2]" />
               Activité Récente
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-6 relative">
-              <div className="absolute top-0 bottom-0 left-4 w-0.5 bg-gradient-to-b from-blue-500 via-purple-500 to-pink-500 opacity-20" />
+              <div className="absolute top-0 bottom-0 left-4 w-0.5 bg-[#1877F2] opacity-20" />
               
               {[
-                { icon: Users, title: 'Nouvelle admission', desc: 'Thomas Dubois validé', time: '2h', color: 'from-blue-500 to-blue-600' },
-                { icon: Calendar, title: 'Événement créé', desc: 'Formation Leadership', time: '4h', color: 'from-emerald-500 to-emerald-600' },
-                { icon: ShoppingBag, title: 'Produit ajouté', desc: 'Sac professionnel', time: '6h', color: 'from-purple-500 to-purple-600' },
-                { icon: Award, title: 'Objectif atteint', desc: '100 nouveaux membres', time: '8h', color: 'from-orange-500 to-orange-600' },
-                { icon: MessageSquare, title: 'Nouveau message', desc: 'Support client', time: '12h', color: 'from-pink-500 to-pink-600' },
+                { icon: Users, title: 'Nouvelle admission', desc: 'Thomas Dubois validé', time: '2h', color: 'bg-[#1877F2]' },
+                { icon: Calendar, title: 'Événement créé', desc: 'Formation Leadership', time: '4h', color: 'bg-[#1877F2]' },
+                { icon: ShoppingBag, title: 'Produit ajouté', desc: 'Sac professionnel', time: '6h', color: 'bg-[#1877F2]' },
+                { icon: Award, title: 'Objectif atteint', desc: '100 nouveaux membres', time: '8h', color: 'bg-gray-600' },
+                { icon: MessageSquare, title: 'Nouveau message', desc: 'Support client', time: '12h', color: 'bg-gray-600' },
               ].map((item, i) => (
                 <div key={i} className="flex items-start gap-4 relative group">
-                  <div className={`z-10 w-9 h-9 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform`}>
+                  <div className={`z-10 w-9 h-9 rounded-xl ${item.color} flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
                     <item.icon className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">{item.title}</p>
+                    <p className="text-sm font-semibold text-gray-900 group-hover:text-[#1877F2] transition-colors">{item.title}</p>
                     <p className="text-sm text-gray-500 mt-0.5">{item.desc}</p>
                     <p className="text-xs text-gray-400 mt-1 font-medium flex items-center gap-1">
                       <Clock className="w-3 h-3" />
