@@ -9,10 +9,12 @@ import { Services } from '@/components/Services';
 import { Admissions } from '@/components/Admissions';
 import { Login } from '@/components/Login';
 import { Register } from '@/components/Register';
+import { SuperAdminMain } from '@/components/superadmin/SuperAdminMain';
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [currentView, setCurrentView] = useState('dashboard');
   const [triggerAction, setTriggerAction] = useState<string | null>(null);
@@ -29,10 +31,21 @@ export default function Home() {
   const handleLogin = (email: string) => {
     setUserEmail(email);
     setIsAuthenticated(true);
+    // Vérifier si c'est un super admin
+    if (email === 'superadmin@ugate.com' || email.includes('superadmin')) {
+      setIsSuperAdmin(true);
+    }
   };
 
   const handleRegister = () => {
     setAuthView('login');
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setIsSuperAdmin(false);
+    setUserEmail('');
+    setCurrentView('dashboard');
   };
 
   const handleSwitchToRegister = () => {
@@ -77,6 +90,12 @@ export default function Home() {
     return <Register onRegister={handleRegister} onSwitchToLogin={handleSwitchToLogin} />;
   }
 
+  // Si c'est un super admin, afficher le dashboard super admin
+  if (isSuperAdmin) {
+    return <SuperAdminMain userEmail={userEmail} onLogout={handleLogout} />;
+  }
+
+  // Sinon, afficher le dashboard normal du syndicat
   return (
     <Layout currentView={currentView} onChangeView={setCurrentView} userEmail={userEmail}>
       {renderView()}
