@@ -1,13 +1,16 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { Calendar, MapPin, Users, Edit3, Trash2, Plus, Image as ImageIcon, Save, X, ChevronLeft, Search, Filter, Grid, List, Clock, Tag, Share2, Download, Eye, Copy, Star, TrendingUp, Upload } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Calendar, MapPin, Users, Edit3, Trash2, Plus, Image as ImageIcon, Save, X, ChevronLeft, Search, Filter, Grid, List, Clock, Tag, Share2, Download, Eye, Copy, TrendingUp, Upload, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { Input } from './ui/Input';
 import { Card, CardContent } from './ui/Card';
-import { MOCK_EVENTS } from '@/lib/constants';
-import { Event } from '@/lib/types';
+import { BranchSelector } from './BranchSelector';
+import { Branch, EventItem } from '@/lib/types/events';
+import { getEventsByBranch, createEvent } from '@/lib/services/events.service';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { getMockEventsByBranch } from '@/lib/constants/mockEvents';
 import Image from 'next/image';
 
 interface EventsProps {
@@ -15,12 +18,15 @@ interface EventsProps {
 }
 
 export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
+  const { user } = useAuth();
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isCreating, setIsCreating] = useState(autoOpenCreate);
-  const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -29,11 +35,57 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
     description: '',
     date: '',
     location: '',
+    startTime: '',
+    endTime: '',
     capacity: '',
     price: '',
     category: '',
     tags: [] as string[],
   });
+
+  // Charger les événements quand une branche est sélectionnée
+  useEffect(() => {
+    if (selectedBranch) {
+      loadEvents(selectedBranch.id);
+    }
+  }, [selectedBranch]);
+
+  const loadEvents = async (branchId: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const fetchedEvents = await getEventsByBranch(branchId);
+      
+      // Si l'API retourne des événements, les utiliser
+      if (fetchedEvents && fetchedEvents.length > 0) {
+        setEvents(fetchedEvents);
+      } else {
+        // Sinon, charger les événements fictifs pour tester l'interface
+        console.log('📝 Aucun événement réel trouvé, chargement des événements fictifs...');
+        const mockEvents = getMockEventsByBranch(branchId);
+        setEvents(mockEvents);
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des événements:', err);
+      
+      // En cas d'erreur, charger les événements fictifs
+      console.log('📝 Chargement des événements fictifs suite à l\'erreur...');
+      const mockEvents = getMockEventsByBranch(branchId);
+      setEvents(mockEvents);
+      
+      setError('Événements fictifs affichés. Les vrais événements seront disponibles une fois l\'API configurée.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackToBranches = () => {
+    setSelectedBranch(null);
+    setEvents([]);
+    setSelectedEvent(null);
+    setIsCreating(false);
+    setError(null);
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,30 +98,86 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
     }
   };
 
-  const handleSave = () => {
-    const newEvent: Event = {
-      id: String(events.length + 1),
-      title: formData.title,
-      description: formData.description,
-      date: formData.date,
-      location: formData.location,
-      imageUrl: uploadedImage || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&h=450&fit=crop',
-      status: 'active',
-      attendees: 0,
-    };
-    setEvents([...events, newEvent]);
-    setIsCreating(false);
-    setUploadedImage(null);
-    setFormData({ title: '', description: '', date: '', location: '', capacity: '', price: '', category: '', tags: [] });
+  const handleSave = async () => {
+    if (!selectedBranch || !user) return;
+
+    // Validation côté client
+    if (!formData.title || formData.title.trim() === '') {
+      setError('Le titre est obligatoire');
+      return;
+    }
+    if (!formData.description || formData.description.trim() === '') {
+      setError('La description est obligatoire');
+      return;
+    }
+    if (!formData.date) {
+      setError('La date est obligatoire');
+      return;
+    }
+    if (!formData.location || formData.location.trim() === '') {
+      setError('Le lieu est obligatoire');
+      return;
+    }
+    if (!formData.startTime) {
+      setError('L\'heure de début est obligatoire');
+      return;
+    }
+    if (!formData.endTime) {
+      setError('L\'heure de fin est obligatoire');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const dataToSend = {
+        creatorId: user.id,
+        branchId: selectedBranch.id,
+        title: formData.title,
+        description: formData.description,
+        eventDate: formData.date,
+        location: formData.location,
+        startTime: formData.startTime,
+        endTime: formData.endTime
+      };
+      console.log('📝 Envoi des données:', JSON.stringify(dataToSend, null, 2));
+      console.table(dataToSend);
+      
+      await createEvent({
+        creatorId: user.id,
+        branchId: selectedBranch.id,
+        title: formData.title,
+        description: formData.description,
+        eventDate: formData.date,
+        location: formData.location,
+        startTime: formData.startTime,
+        endTime: formData.endTime
+        // Note: images/videos/files seront ajoutés plus tard avec un vrai upload de fichiers
+      });
+      
+      // Recharger les événements
+      await loadEvents(selectedBranch.id);
+      
+      setIsCreating(false);
+      setUploadedImage(null);
+      setFormData({ title: '', description: '', date: '', location: '', startTime: '', endTime: '', capacity: '', price: '', category: '', tags: [] });
+    } catch (err) {
+      console.error('Erreur lors de la création:', err);
+      setError('Impossible de créer l\'événement. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDelete = (id: string) => {
+    // TODO: Implémenter la suppression via API
     setEvents(events.filter(e => e.id !== id));
   };
 
-  const handleDuplicate = (event: Event) => {
-    const duplicated = { ...event, id: String(events.length + 1), title: `${event.title} (Copie)` };
-    setEvents([...events, duplicated]);
+  const handleDuplicate = (event: EventItem) => {
+    // TODO: Implémenter la duplication via API
+    console.log('Duplication de:', event.title);
   };
 
   const applyFormatting = (command: string) => {
@@ -79,9 +187,13 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          event.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || event.status === filterStatus;
-    return matchesSearch && matchesFilter;
+    return matchesSearch;
   });
+
+  // Si aucune branche n'est sélectionnée, afficher le sélecteur
+  if (!selectedBranch) {
+    return <BranchSelector onSelectBranch={setSelectedBranch} />;
+  }
 
   if (isCreating) {
     return (
@@ -147,8 +259,8 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input 
-                        type="datetime-local" 
-                        label="Date et Heure *"
+                        type="date" 
+                        label="Date *"
                         value={formData.date}
                         onChange={(e) => setFormData({...formData, date: e.target.value})}
                       />
@@ -158,6 +270,18 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                         placeholder="Ex: 150"
                         value={formData.capacity}
                         onChange={(e) => setFormData({...formData, capacity: e.target.value})}
+                      />
+                      <Input 
+                        type="time" 
+                        label="Heure de début *"
+                        value={formData.startTime}
+                        onChange={(e) => setFormData({...formData, startTime: e.target.value})}
+                      />
+                      <Input 
+                        type="time" 
+                        label="Heure de fin *"
+                        value={formData.endTime}
+                        onChange={(e) => setFormData({...formData, endTime: e.target.value})}
                       />
                       <div className="md:col-span-2">
                         <Input 
@@ -418,7 +542,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
               <Card className="border-0 shadow-xl overflow-hidden">
                 <div className="relative h-96">
                   <Image 
-                    src={selectedEvent.imageUrl} 
+                    src={selectedEvent.images?.[0] || '/placeholder-event.jpg'} 
                     alt={selectedEvent.title}
                     fill
                     className="object-cover"
@@ -430,7 +554,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                         {selectedEvent.status === 'active' ? 'Actif' : 'Brouillon'}
                       </Badge>
                       <Badge variant="success" className="bg-white/90 backdrop-blur border-0">
-                        {selectedEvent.attendees} inscrits
+                        {selectedEvent.participantCount} inscrits
                       </Badge>
                     </div>
                     <h1 className="text-3xl font-bold text-white mb-2">{selectedEvent.title}</h1>
@@ -460,7 +584,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Participants</span>
-                      <span className="font-bold text-gray-900">{selectedEvent.attendees}</span>
+                      <span className="font-bold text-gray-900">{selectedEvent.participantCount}</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-gray-600">Vues</span>
@@ -500,14 +624,19 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-            Gestion des Événements
-          </h1>
-          <p className="text-gray-500 mt-1 flex items-center gap-2">
-            <Calendar className="w-4 h-4" />
-            {filteredEvents.length} événement{filteredEvents.length > 1 ? 's' : ''} • {events.filter(e => e.status === 'active').length} actif{events.filter(e => e.status === 'active').length > 1 ? 's' : ''}
-          </p>
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={handleBackToBranches}>
+            <ChevronLeft className="w-4 h-4 mr-1" /> Changer de branche
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+              Événements - {selectedBranch.name}
+            </h1>
+            <p className="text-gray-500 mt-1 flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              {filteredEvents.length} événement{filteredEvents.length > 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-3">
           <div className="flex gap-2 bg-white rounded-xl p-1 border border-gray-200 shadow-sm">
@@ -546,21 +675,44 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
               />
             </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:border-blue-500 cursor-pointer outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="active">Actifs</option>
-              <option value="pending">En attente</option>
-              <option value="archived">Archivés</option>
-            </select>
           </div>
         </CardContent>
       </Card>
 
-      {viewMode === 'grid' ? (
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle className="w-5 h-5" />
+              <span>{error}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600">Chargement des événements...</p>
+          </div>
+        </div>
+      ) : filteredEvents.length === 0 ? (
+        <Card className="border-0 shadow-xl">
+          <CardContent className="p-12 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Calendar className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Aucun événement</h3>
+            <p className="text-gray-600 mb-6">
+              {searchQuery ? 'Aucun événement ne correspond à votre recherche.' : 'Cette branche n\'a pas encore d\'événements.'}
+            </p>
+            <Button leftIcon={Plus} onClick={() => setIsCreating(true)}>
+              Créer le premier événement
+            </Button>
+          </CardContent>
+        </Card>
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredEvents.map((event) => (
             <div 
@@ -568,27 +720,14 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
               className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 overflow-hidden flex flex-col h-full cursor-pointer"
               onClick={() => setSelectedEvent(event)}
             >
-              <div className="relative aspect-video overflow-hidden bg-gray-100">
-                <Image 
-                  src={event.imageUrl} 
-                  alt={event.title}
-                  fill
-                  className="object-cover transform group-hover:scale-110 transition-transform duration-700" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
+                <div className="absolute inset-0 flex items-center justify-center text-white">
+                  <Calendar className="w-12 h-12 opacity-50" />
+                </div>
                 <div className="absolute top-3 right-3">
                   <Badge className="bg-white/95 backdrop-blur shadow-lg border-0">
-                    {event.status === 'active' ? 'Publié' : 'Brouillon'}
+                    {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                   </Badge>
-                </div>
-                <div className="absolute bottom-3 left-3 text-white font-medium text-sm flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {new Date(event.date).toLocaleDateString('fr-FR')}
-                </div>
-                <div className="absolute top-3 left-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="p-2 bg-white/90 backdrop-blur rounded-lg hover:bg-white transition-colors">
-                    <Star className="w-4 h-4 text-yellow-500" />
-                  </button>
                 </div>
               </div>
               
@@ -608,8 +747,12 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                     </span>
                     <span className="flex items-center text-gray-600 font-semibold">
                       <Users className="w-4 h-4 mr-2 text-gray-400" />
-                      {event.attendees}
+                      {event.participantCount}
                     </span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-500">
+                    <Clock className="w-4 h-4 mr-2" />
+                    <span>{event.startTime} - {event.endTime}</span>
                   </div>
                 </div>
                 
@@ -665,7 +808,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                 <div className="flex items-center gap-6">
                   <div className="relative w-32 h-20 rounded-xl overflow-hidden flex-shrink-0">
                     <Image 
-                      src={event.imageUrl} 
+                      src={event.images?.[0] || '/placeholder-event.jpg'} 
                       alt={event.title}
                       fill
                       className="object-cover"
@@ -692,7 +835,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                       </span>
                       <span className="flex items-center gap-2">
                         <Users className="w-4 h-4" />
-                        {event.attendees} participants
+                        {event.participantCount} participants
                       </span>
                     </div>
                   </div>

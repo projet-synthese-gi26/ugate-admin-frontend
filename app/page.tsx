@@ -9,12 +9,11 @@ import { Services } from '@/components/Services';
 import { Admissions } from '@/components/Admissions';
 import { Login } from '@/components/Login';
 import { Register } from '@/components/Register';
-import { SuperAdminMain } from '@/components/superadmin/SuperAdminMain';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function Home() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userEmail, setUserEmail] = useState('');
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
+  
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
   const [currentView, setCurrentView] = useState('dashboard');
   const [triggerAction, setTriggerAction] = useState<string | null>(null);
@@ -28,23 +27,8 @@ export default function Home() {
     setTriggerAction(action);
   };
 
-  const handleLogin = (email: string) => {
-    setUserEmail(email);
-    setIsAuthenticated(true);
-    // Vérifier si c'est un super admin
-    if (email === 'superadmin@ugate.com' || email.includes('superadmin')) {
-      setIsSuperAdmin(true);
-    }
-  };
-
-  const handleRegister = () => {
-    setAuthView('login');
-  };
-
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    setIsSuperAdmin(false);
-    setUserEmail('');
+    logout();
     setCurrentView('dashboard');
   };
 
@@ -83,21 +67,30 @@ export default function Home() {
     }
   };
 
-  if (!isAuthenticated) {
-    if (authView === 'login') {
-      return <Login onLogin={handleLogin} onSwitchToRegister={handleSwitchToRegister} />;
-    }
-    return <Register onRegister={handleRegister} onSwitchToLogin={handleSwitchToLogin} />;
+  // Afficher un loader pendant la vérification de l'authentification
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#1877F2] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Si c'est un super admin, afficher le dashboard super admin
-  if (isSuperAdmin) {
-    return <SuperAdminMain userEmail={userEmail} onLogout={handleLogout} />;
+  // Si non authentifié, afficher le formulaire de login ou register
+  if (!isAuthenticated) {
+    if (authView === 'login') {
+      return <Login onSwitchToRegister={handleSwitchToRegister} />;
+    }
+    return <Register onSwitchToLogin={handleSwitchToLogin} />;
   }
+
 
   // Sinon, afficher le dashboard normal du syndicat
   return (
-    <Layout currentView={currentView} onChangeView={setCurrentView} userEmail={userEmail}>
+    <Layout currentView={currentView} onChangeView={setCurrentView} userEmail={user?.email || ''}>
       {renderView()}
     </Layout>
   );

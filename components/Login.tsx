@@ -3,39 +3,45 @@
 import React, { useState } from 'react';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from './ui/Button';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface LoginProps {
-  onLogin: (email: string) => void;
   onSwitchToRegister: () => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => {
+export const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
+  const { login, error: authError, isLoading: authLoading } = useAuth();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalError('');
     
     if (!email || !password) {
-      setError('Veuillez remplir tous les champs');
+      setLocalError('Veuillez remplir tous les champs');
       return;
     }
 
-    if (!email.includes('@')) {
-      setError('Adresse email invalide');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setLocalError('Format d\'email invalide');
       return;
     }
 
-    setIsLoading(true);
-    
-    setTimeout(() => {
-      setIsLoading(false);
-      onLogin(email);
-    }, 1500);
+    if (password.length < 6) {
+      setLocalError('Le mot de passe doit contenir au moins 6 caractères');
+      return;
+    }
+
+    try {
+      await login({ identifier: email, password });
+    } catch (err) {
+      console.error('Erreur lors de la connexion:', err);
+    }
   };
 
   return (
@@ -54,10 +60,10 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Message d'erreur */}
-            {error && (
+            {(localError || authError) && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
+                <span>{localError || authError}</span>
               </div>
             )}
 
@@ -127,7 +133,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
               variant="primary"
               size="lg"
               className="w-full"
-              isLoading={isLoading}
+              isLoading={authLoading}
             >
               Se connecter
             </Button>

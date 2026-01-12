@@ -1,27 +1,30 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, User, Building, Phone } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, User, Phone } from 'lucide-react';
 import { Button } from './ui/Button';
+import { useAuth } from '@/lib/contexts/AuthContext';
 
 interface RegisterProps {
-  onRegister: () => void;
   onSwitchToLogin: () => void;
 }
 
-export const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin }) => {
+export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
+  const { register, error: authError, isLoading: authLoading } = useAuth();
+  
   const [formData, setFormData] = useState({
-    fullName: '',
+    username: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
-    company: '',
     password: '',
     confirmPassword: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,39 +36,58 @@ export const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setLocalError('');
+    setSuccessMessage('');
 
-    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
-      setError('Veuillez remplir tous les champs obligatoires');
+    if (!formData.username || !formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword) {
+      setLocalError('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
-    if (!formData.email.includes('@')) {
-      setError('Adresse email invalide');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setLocalError('Format d\'email invalide');
       return;
     }
 
     if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
+      setLocalError('Le mot de passe doit contenir au moins 6 caractères');
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
+      setLocalError('Les mots de passe ne correspondent pas');
       return;
     }
 
     if (!acceptTerms) {
-      setError('Vous devez accepter les conditions d\'utilisation');
+      setLocalError('Vous devez accepter les conditions d\'utilisation');
       return;
     }
 
-    setIsLoading(true);
-
-    setTimeout(() => {
-      setIsLoading(false);
-      onRegister();
-    }, 1500);
+    try {
+      await register({
+        username: formData.username,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        service: 'LETS_GO',
+        roles: ['ADMIN']
+      });
+      
+      // Afficher message de succès
+      setSuccessMessage('Inscription réussie ! Redirection vers la page de connexion...');
+      
+      // Rediriger vers login après 2 secondes
+      setTimeout(() => {
+        onSwitchToLogin();
+      }, 2000);
+      
+    } catch (err) {
+      console.error('Erreur lors de l\'inscription:', err);
+    }
   };
 
   return (
@@ -84,29 +106,77 @@ export const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin 
         <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Message d'erreur */}
-            {error && (
+            {(localError || authError) && (
               <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
+                <span>{localError || authError}</span>
+              </div>
+            )}
+
+            {/* Message de succès */}
+            {successMessage && (
+              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+                <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span>{successMessage}</span>
               </div>
             )}
 
             {/* Grille de champs */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Nom complet */}
+              {/* Username */}
               <div>
-                <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom complet <span className="text-red-500">*</span>
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom d&apos;utilisateur <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
-                    id="fullName"
-                    name="fullName"
+                    id="username"
+                    name="username"
                     type="text"
-                    value={formData.fullName}
+                    value={formData.username}
                     onChange={handleChange}
-                    placeholder="Jean Dupont"
+                    placeholder="johndoe"
+                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Prénom */}
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Prénom <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    placeholder="Jean"
+                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Nom */}
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                  Nom <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    id="lastName"
+                    name="lastName"
+                    type="text"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    placeholder="Dupont"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
                   />
                 </div>
@@ -134,7 +204,7 @@ export const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin 
               {/* Téléphone */}
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Téléphone
+                  Téléphone <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -145,25 +215,6 @@ export const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin 
                     value={formData.phone}
                     onChange={handleChange}
                     placeholder="+33 6 12 34 56 78"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Entreprise */}
-              <div>
-                <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                  Entreprise
-                </label>
-                <div className="relative">
-                  <Building className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="company"
-                    name="company"
-                    type="text"
-                    value={formData.company}
-                    onChange={handleChange}
-                    placeholder="Nom de l'entreprise"
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
                   />
                 </div>
@@ -249,7 +300,7 @@ export const Register: React.FC<RegisterProps> = ({ onRegister, onSwitchToLogin 
               variant="primary"
               size="lg"
               className="w-full"
-              isLoading={isLoading}
+              isLoading={authLoading}
             >
               Créer mon compte
             </Button>
