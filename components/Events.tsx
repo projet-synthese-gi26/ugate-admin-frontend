@@ -41,10 +41,6 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
     location: '',
     startTime: '',
     endTime: '',
-    capacity: '',
-    price: '',
-    category: '',
-    tags: [] as string[],
   });
 
   // Restaurer la branche depuis l'URL au chargement
@@ -202,7 +198,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
       
       setIsCreating(false);
       setUploadedImage(null);
-      setFormData({ title: '', description: '', date: '', location: '', startTime: '', endTime: '', capacity: '', price: '', category: '', tags: [] });
+      setFormData({ title: '', description: '', date: '', location: '', startTime: '', endTime: '' });
     } catch (err) {
       console.error('Erreur lors de la création:', err);
       setError('Impossible de créer l\'événement. Veuillez réessayer.');
@@ -274,22 +270,6 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                         className="text-lg font-semibold"
                       />
                       
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input 
-                          type="text" 
-                          label="Catégorie" 
-                          placeholder="Ex: Formation, Networking"
-                          value={formData.category}
-                          onChange={(e) => setFormData({...formData, category: e.target.value})}
-                        />
-                        <Input 
-                          type="number" 
-                          label="Prix (€)" 
-                          placeholder="0.00"
-                          value={formData.price}
-                          onChange={(e) => setFormData({...formData, price: e.target.value})}
-                        />
-                      </div>
                     </div>
                   </div>
 
@@ -304,13 +284,6 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                         label="Date *"
                         value={formData.date}
                         onChange={(e) => setFormData({...formData, date: e.target.value})}
-                      />
-                      <Input 
-                        type="number" 
-                        label="Capacité maximale" 
-                        placeholder="Ex: 150"
-                        value={formData.capacity}
-                        onChange={(e) => setFormData({...formData, capacity: e.target.value})}
                       />
                       <Input 
                         type="time" 
@@ -495,19 +468,9 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                         {formData.date ? new Date(formData.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) : 'Date à définir'}
                       </Badge>
                     </div>
-                    {formData.price && (
-                      <div className="absolute bottom-4 left-4">
-                        <div className="bg-emerald-500 text-white px-4 py-2 rounded-xl font-bold shadow-lg">
-                          {formData.price} €
-                        </div>
-                      </div>
-                    )}
                   </div>
                   <div className="p-6">
                     <div className="flex items-center gap-2 mb-3">
-                      {formData.category && (
-                        <Badge variant="info" className="text-xs">{formData.category}</Badge>
-                      )}
                       <Badge variant="success" className="text-xs">Nouveau</Badge>
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
