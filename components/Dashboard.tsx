@@ -18,35 +18,23 @@ interface StatCardProps {
   percentage?: number;
 }
 
-const StatCard = ({ title, value, change, icon: Icon, trend, gradient, percentage }: StatCardProps) => (
-  <Card className="relative overflow-hidden group hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 border-0">
-    <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-5 group-hover:opacity-10 transition-opacity`}></div>
-    <CardContent className="p-6 relative">
-      <div className="flex justify-between items-start mb-4">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-gray-500 uppercase tracking-wider">{title}</p>
-          <h3 className="text-3xl font-bold text-gray-900 tracking-tight">{value}</h3>
-        </div>
-        <div className={`p-3 rounded-2xl bg-gradient-to-br ${gradient} shadow-lg group-hover:scale-110 transition-transform`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <span className={`inline-flex items-center text-sm font-bold ${trend === 'up' ? 'text-emerald-600' : 'text-red-600'}`}>
-            {trend === 'up' ? <ArrowUpRight className="w-4 h-4 mr-1" /> : <ArrowDownRight className="w-4 h-4 mr-1" />}
-            {change}
-          </span>
-          <span className="text-sm text-gray-400 ml-2">ce mois</span>
-        </div>
-        {percentage && (
-          <div className="flex items-center gap-2">
-            <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div className={`h-full bg-gradient-to-r ${gradient} rounded-full transition-all duration-500`} style={{ width: `${percentage}%` }}></div>
-            </div>
-            <span className="text-xs font-semibold text-gray-500">{percentage}%</span>
+const StatCard = ({ title, value, change, icon: Icon, trend, gradient }: StatCardProps) => (
+  <Card className="hover:shadow-lg transition-all border-0">
+    <CardContent className="p-6">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="text-sm font-medium text-gray-500">{title}</p>
+          <h3 className="text-2xl font-bold text-gray-900 mt-2">{value}</h3>
+          <div className="flex items-center mt-2">
+            <span className={`inline-flex items-center text-sm font-semibold ${trend === 'up' ? 'text-emerald-600' : 'text-red-600'}`}>
+              {trend === 'up' ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+              {change}
+            </span>
           </div>
-        )}
+        </div>
+        <div className={`p-3 rounded-xl bg-gradient-to-br ${gradient}`}>
+          <Icon className="w-5 h-5 text-white" />
+        </div>
       </div>
     </CardContent>
   </Card>
@@ -173,51 +161,46 @@ Ce rapport a été généré automatiquement par UGate Admin.
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header avec actions rapides */}
+    <div className="space-y-8">
+      {/* Header simplifié */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-3xl font-bold text-gray-900">
             Tableau de Bord
           </h1>
-          <p className="text-gray-500 mt-1 flex items-center gap-2">
-            <Activity className="w-4 h-4" />
-            Bienvenue, voici vos performances en temps réel
+          <p className="text-gray-500 mt-1">
+            Vue d&apos;ensemble de votre activité
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex gap-3">
           <select 
             value={timeRange}
             onChange={(e) => setTimeRange(e.target.value)}
-            className="bg-white border border-gray-200 text-gray-700 text-sm rounded-lg px-4 py-2.5 outline-none shadow-sm cursor-pointer hover:border-[#1877F2] hover:shadow-md transition-all font-medium"
+            className="bg-white border border-gray-200 text-gray-700 text-sm rounded-lg px-4 py-2.5 outline-none hover:border-[#1877F2] transition-all"
           >
-            <option value="7d">7 derniers jours</option>
-            <option value="30d">30 derniers jours</option>
-            <option value="90d">90 derniers jours</option>
-            <option value="1y">Cette année</option>
+            <option value="7d">7 jours</option>
+            <option value="30d">30 jours</option>
+            <option value="90d">90 jours</option>
           </select>
-          <Button variant="outline" size="md" leftIcon={Download}>
+          <Button variant="outline" size="md" leftIcon={Download} onClick={handleGenerateReport}>
             Exporter
-          </Button>
-          <Button variant="primary" size="md" leftIcon={Bell}>
-            Notifications
           </Button>
         </div>
       </div>
 
-      {/* Actions rapides */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {quickActions.map((action, idx) => (
+      {/* Actions rapides - Version compacte */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {quickActions.slice(0, 4).map((action, idx) => (
           <button
             key={idx}
             onClick={action.action}
-            className="group relative overflow-hidden bg-white rounded-xl p-6 border border-gray-200 hover:border-[#1877F2] hover:shadow-lg transition-all duration-300"
+            className="group bg-white rounded-lg p-4 border border-gray-200 hover:border-[#1877F2] hover:shadow-md transition-all"
           >
-            <div className="relative flex flex-col items-center gap-3">
-              <div className={`p-3 rounded-xl ${action.color} shadow-sm group-hover:scale-110 transition-transform`}>
-                <action.icon className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${action.color}`}>
+                <action.icon className="w-5 h-5 text-white" />
               </div>
-              <span className="text-sm font-semibold text-gray-900 group-hover:text-white transition-colors">
+              <span className="text-sm font-medium text-gray-900">
                 {action.label}
               </span>
             </div>
@@ -226,7 +209,7 @@ Ce rapport a été généré automatiquement par UGate Admin.
       </div>
 
       {/* Statistiques principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           title="Membres Totaux" 
           value="2,543" 
@@ -234,7 +217,6 @@ Ce rapport a été généré automatiquement par UGate Admin.
           icon={Users} 
           trend="up" 
           gradient="from-[#1877F2] to-[#1877F2]"
-          percentage={85}
         />
         <StatCard 
           title="Événements Actifs" 
@@ -243,7 +225,6 @@ Ce rapport a été généré automatiquement par UGate Admin.
           icon={Calendar} 
           trend="up" 
           gradient="from-[#1877F2] to-[#1877F2]"
-          percentage={72}
         />
         <StatCard 
           title="Revenus Mensuels" 
@@ -252,7 +233,6 @@ Ce rapport a été généré automatiquement par UGate Admin.
           icon={DollarSign} 
           trend="up" 
           gradient="from-[#1877F2] to-[#1877F2]"
-          percentage={91}
         />
         <StatCard 
           title="Taux Engagement" 
@@ -261,39 +241,28 @@ Ce rapport a été généré automatiquement par UGate Admin.
           icon={TrendingUp} 
           trend="down" 
           gradient="from-gray-600 to-gray-600"
-          percentage={68}
         />
       </div>
 
-      {/* Graphiques principaux */}
+      {/* Graphique principal + Top événements */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Graphique de croissance */}
         <div className="lg:col-span-2">
-          <Card className="h-full border-0 shadow-xl">
+          <Card className="border-0 shadow-lg">
             <CardHeader className="border-b border-gray-100">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-[#1877F2]" />
-                  Croissance des Adhésions
-                </CardTitle>
-                <div className="flex gap-2">
-                  <Badge variant="success">+12.5%</Badge>
-                  <Badge variant="info">Tendance positive</Badge>
-                </div>
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-[#1877F2]" />
+                Croissance des Adhésions
+              </CardTitle>
             </CardHeader>
             <CardContent className="pt-6">
-              <div className="h-[350px] w-full">
+              <div className="h-[320px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={CHART_DATA} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorNew" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#1877F2" stopOpacity={0.3}/>
                         <stop offset="95%" stopColor="#1877F2" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6B7280" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#6B7280" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
@@ -302,7 +271,6 @@ Ce rapport a été généré automatiquement par UGate Admin.
                       axisLine={false} 
                       tickLine={false} 
                       tick={{fill: '#6B7280', fontSize: 12}} 
-                      dy={10}
                     />
                     <YAxis 
                       axisLine={false} 
@@ -316,25 +284,14 @@ Ce rapport a été généré automatiquement par UGate Admin.
                         border: '1px solid #E5E7EB', 
                         boxShadow: '0 10px 40px -10px rgb(0 0 0 / 0.2)' 
                       }}
-                      itemStyle={{ color: '#1F2937', fontSize: '13px', fontWeight: 600 }}
                     />
                     <Area 
                       type="monotone" 
                       dataKey="new" 
                       stroke="#1877F2" 
-                      strokeWidth={3} 
+                      strokeWidth={2} 
                       fillOpacity={1} 
                       fill="url(#colorNew)" 
-                      activeDot={{ r: 8, strokeWidth: 0, fill: '#1877F2' }}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="active" 
-                      stroke="#6B7280" 
-                      strokeWidth={3} 
-                      fillOpacity={1} 
-                      fill="url(#colorActive)" 
-                      activeDot={{ r: 8, strokeWidth: 0, fill: '#6B7280' }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -343,198 +300,27 @@ Ce rapport a été généré automatiquement par UGate Admin.
           </Card>
         </div>
 
-        {/* Distribution par catégorie */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader className="border-b border-gray-100">
-            <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-[#1877F2]" />
-              Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="h-[250px] w-full flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={categoryData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {categoryData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 space-y-3">
-              {categoryData.map((cat, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: cat.color }}></div>
-                    <span className="text-sm font-medium text-gray-700">{cat.name}</span>
-                  </div>
-                  <span className="text-sm font-bold text-gray-900">{cat.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Performance et Top événements */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Performance hebdomadaire */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader className="border-b border-gray-100">
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="w-5 h-5 text-[#1877F2]" />
-              Performance Hebdomadaire
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#fff', 
-                      borderRadius: '12px', 
-                      border: '1px solid #E5E7EB', 
-                      boxShadow: '0 10px 40px -10px rgb(0 0 0 / 0.2)' 
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="events" fill="#1877F2" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="products" fill="#6B7280" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="services" fill="#9CA3AF" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Top événements */}
-        <Card className="border-0 shadow-xl">
-          <CardHeader className="border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-[#1877F2]" />
-                Top Événements
-              </CardTitle>
-              <Button variant="ghost" size="sm">Voir tout</Button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="space-y-4">
-              {topEvents.map((event, idx) => (
-                <div key={idx} className="flex items-center justify-between p-4 rounded-xl bg-gray-50 hover:bg-blue-50 transition-all group cursor-pointer border border-gray-200">
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-[#1877F2] text-white font-bold shadow-sm">
-                      {idx + 1}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 group-hover:text-[#1877F2] transition-colors">{event.name}</h4>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                          <Users className="w-3 h-3" />
-                          {event.attendees} participants
-                        </span>
-                        <Badge variant={event.status === 'En cours' ? 'success' : event.status === 'Terminé' ? 'default' : 'info'} className="text-xs">
-                          {event.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">{event.revenue}</p>
-                    <span className={`text-xs font-semibold flex items-center gap-1 ${event.trend === 'up' ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {event.trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                      {event.trend === 'up' ? '+' : '-'}15%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Revenus et Activité récente */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Analyse des revenus */}
-        <div className="lg:col-span-2">
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="border-b border-gray-100">
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-[#1877F2]" />
-                Analyse Financière
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={revenueData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: '#6B7280', fontSize: 12}} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        borderRadius: '12px', 
-                        border: '1px solid #E5E7EB', 
-                        boxShadow: '0 10px 40px -10px rgb(0 0 0 / 0.2)' 
-                      }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="revenue" stroke="#1877F2" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                    <Line type="monotone" dataKey="expenses" stroke="#EF4444" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                    <Line type="monotone" dataKey="profit" stroke="#6B7280" strokeWidth={3} dot={{ r: 5 }} activeDot={{ r: 8 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Activité récente améliorée */}
-        <Card className="border-0 shadow-xl">
+        <Card className="border-0 shadow-lg">
           <CardHeader className="border-b border-gray-100">
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-[#1877F2]" />
-              Activité Récente
+              <Star className="w-5 h-5 text-[#1877F2]" />
+              Top Événements
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="space-y-6 relative">
-              <div className="absolute top-0 bottom-0 left-4 w-0.5 bg-[#1877F2] opacity-20" />
-              
-              {[
-                { icon: Users, title: 'Nouvelle admission', desc: 'Thomas Dubois validé', time: '2h', color: 'bg-[#1877F2]' },
-                { icon: Calendar, title: 'Événement créé', desc: 'Formation Leadership', time: '4h', color: 'bg-[#1877F2]' },
-                { icon: ShoppingBag, title: 'Produit ajouté', desc: 'Sac professionnel', time: '6h', color: 'bg-[#1877F2]' },
-                { icon: Award, title: 'Objectif atteint', desc: '100 nouveaux membres', time: '8h', color: 'bg-gray-600' },
-                { icon: MessageSquare, title: 'Nouveau message', desc: 'Support client', time: '12h', color: 'bg-gray-600' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-start gap-4 relative group">
-                  <div className={`z-10 w-9 h-9 rounded-xl ${item.color} flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
-                    <item.icon className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-900 group-hover:text-[#1877F2] transition-colors">{item.title}</p>
-                    <p className="text-sm text-gray-500 mt-0.5">{item.desc}</p>
-                    <p className="text-xs text-gray-400 mt-1 font-medium flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      Il y a {item.time}
-                    </p>
+            <div className="space-y-3">
+              {topEvents.slice(0, 4).map((event, idx) => (
+                <div key={idx} className="p-3 rounded-lg bg-gray-50 hover:bg-blue-50 transition-all cursor-pointer">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 text-sm">{event.name}</h4>
+                      <span className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                        <Users className="w-3 h-3" />
+                        {event.attendees} participants
+                      </span>
+                    </div>
+                    <p className="font-bold text-gray-900 text-sm">{event.revenue}</p>
                   </div>
                 </div>
               ))}
@@ -542,6 +328,36 @@ Ce rapport a été généré automatiquement par UGate Admin.
           </CardContent>
         </Card>
       </div>
+
+      {/* Activité récente */}
+      <Card className="border-0 shadow-lg">
+        <CardHeader className="border-b border-gray-100">
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-[#1877F2]" />
+            Activité Récente
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { icon: Users, title: 'Nouvelle admission', desc: 'Thomas Dubois validé', time: '2h' },
+              { icon: Calendar, title: 'Événement créé', desc: 'Formation Leadership', time: '4h' },
+              { icon: ShoppingBag, title: 'Produit ajouté', desc: 'Sac professionnel', time: '6h' },
+            ].map((item, i) => (
+              <div key={i} className="flex items-start gap-3 p-4 rounded-lg bg-gray-50 hover:bg-blue-50 transition-all">
+                <div className="w-10 h-10 rounded-lg bg-[#1877F2] flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{item.title}</p>
+                  <p className="text-sm text-gray-500 truncate">{item.desc}</p>
+                  <p className="text-xs text-gray-400 mt-1">Il y a {item.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

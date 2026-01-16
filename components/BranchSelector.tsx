@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Building2, MapPin, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from './ui/Card';
 import { Branch } from '@/lib/types/events';
@@ -11,6 +12,7 @@ interface BranchSelectorProps {
 }
 
 export const BranchSelector: React.FC<BranchSelectorProps> = ({ onSelectBranch }) => {
+  const router = useRouter();
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="text-center mb-8">
@@ -30,7 +32,10 @@ export const BranchSelector: React.FC<BranchSelectorProps> = ({ onSelectBranch }
           <Card
             key={branch.id}
             className="group cursor-pointer border-2 border-gray-200 hover:border-blue-500 hover:shadow-2xl hover:-translate-y-2 transition-all duration-300"
-            onClick={() => onSelectBranch(branch)}
+            onClick={() => {
+              router.push(`/events?branch=${branch.id}`);
+              onSelectBranch(branch);
+            }}
           >
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, X, Phone, Mail, FileText, Calendar, Building, ChevronRight, XCircle, CheckCircle, MessageSquare, Download, Filter, Search, Clock, User, TrendingUp, AlertCircle, Eye } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -14,6 +15,8 @@ interface AdmissionsProps {
 }
 
 export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [admissions, setAdmissions] = useState<Admission[]>(MOCK_ADMISSIONS);
   const [selectedAdmission, setSelectedAdmission] = useState<Admission | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'accepted' | 'rejected'>(autoOpenCreate ? 'pending' : 'pending');
@@ -45,13 +48,37 @@ export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }
     { label: 'Refusées', value: rejectedCount, icon: XCircle, color: 'from-red-500 to-red-600', trend: '-3%' },
   ];
 
+  // Restaurer la demande sélectionnée depuis l'URL
+  useEffect(() => {
+    const admissionId = searchParams.get('admission');
+    if (admissionId) {
+      const admission = admissions.find(a => a.id === admissionId);
+      if (admission && (!selectedAdmission || selectedAdmission.id !== admissionId)) {
+        setSelectedAdmission(admission);
+      }
+    } else if (selectedAdmission) {
+      setSelectedAdmission(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, admissions]);
+
+  const handleSelectAdmission = (admission: Admission) => {
+    router.push(`/admissions?admission=${admission.id}`);
+    setSelectedAdmission(admission);
+  };
+
+  const handleBackToList = () => {
+    router.push('/admissions');
+    setSelectedAdmission(null);
+  };
+
   if (selectedAdmission) {
     return (
       <div className="animate-in fade-in duration-500">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedAdmission(null)}>
-              <ChevronRight className="w-4 h-4 mr-1 rotate-180" /> Retour à la liste
+            <Button variant="ghost" size="sm" onClick={handleBackToList}>
+              <X className="w-4 h-4 mr-1" /> Retour
             </Button>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" leftIcon={Download}>Télécharger le dossier</Button>
@@ -323,8 +350,18 @@ export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {stats.map((stat, idx) => (
-          <Card key={idx} className={`border-0 shadow-lg bg-gradient-to-br ${stat.color} text-white overflow-hidden relative`}>
+        {stats.map((stat, idx) => {
+          const statusMap = ['pending', 'accepted', 'rejected'];
+          const status = idx > 0 ? statusMap[idx - 1] as 'pending' | 'accepted' | 'rejected' : null;
+          
+          return (
+          <Card 
+            key={idx} 
+            className={`border-0 shadow-lg bg-gradient-to-br ${stat.color} text-white overflow-hidden relative transition-transform duration-200 ${
+              status ? 'hover:scale-105' : ''
+            }`}
+            onClick={status ? () => setActiveTab(status) : undefined}
+          >
             <CardContent className="p-6">
               <div className="absolute top-0 right-0 opacity-10">
                 <stat.icon className="w-24 h-24" />
@@ -341,7 +378,8 @@ export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }
               </div>
             </CardContent>
           </Card>
-        ))}
+        );
+        })}
       </div>
 
       <Card className="border-0 shadow-xl">
@@ -393,7 +431,7 @@ export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }
               <div
                 key={admission.id}
                 className="p-6 rounded-xl border-2 border-gray-100 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer group"
-                onClick={() => setSelectedAdmission(admission)}
+                onClick={() => handleSelectAdmission(admission)}
               >
                 <div className="flex items-center gap-6">
                   <div className="relative">

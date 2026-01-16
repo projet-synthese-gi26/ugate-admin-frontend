@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Search, Filter, AlertCircle, CheckCircle2, Edit3, Copy, Trash2, ShoppingBag, Package, TrendingUp, DollarSign, Eye, X, Save, Star, Grid, List, BarChart3, Download, History, Minus, PlusIcon } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -25,6 +26,8 @@ interface ProductsProps {
 }
 
 export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -65,6 +68,30 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
     { id: '3', action: 'Ajustement', field: 'Stock', oldValue: '100', newValue: '150', date: '2024-03-05', user: 'Gestionnaire Stock' },
     { id: '4', action: 'Modification', field: 'Catégorie', oldValue: 'Livres', newValue: 'Publications', date: '2024-03-20', user: 'Admin Principal' },
   ]);
+
+  // Restaurer le produit sélectionné depuis l'URL
+  useEffect(() => {
+    const productId = searchParams.get('product');
+    if (productId) {
+      const product = products.find(p => p.id === productId);
+      if (product && (!selectedProduct || selectedProduct.id !== productId)) {
+        setSelectedProduct(product);
+      }
+    } else if (selectedProduct) {
+      setSelectedProduct(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, products]);
+
+  const handleSelectProduct = (product: Product) => {
+    router.push(`/products?product=${product.id}`);
+    setSelectedProduct(product);
+  };
+
+  const handleBackToList = () => {
+    router.push('/products');
+    setSelectedProduct(null);
+  };
 
   const toggleStock = (id: string) => {
     setProducts(products.map(p => 
@@ -295,7 +322,7 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
       <div className="animate-in fade-in duration-500">
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedProduct(null)}>
+            <Button variant="ghost" size="sm" onClick={handleBackToList}>
               <X className="w-4 h-4 mr-1" /> Fermer
             </Button>
             <div className="flex gap-2">
@@ -363,7 +390,7 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
                 </CardContent>
               </Card>
 
-              <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              <Card className="border-0 shadow-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                 <CardContent className="p-6">
                   <h3 className="font-bold mb-4">Actions Rapides</h3>
                   <div className="space-y-2">
@@ -711,54 +738,54 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
           <Button variant="outline" size="md" leftIcon={Download}>
             Exporter
           </Button>
-          <Button onClick={() => setIsCreating(true)} leftIcon={Plus} className="shadow-lg shadow-emerald-500/20 bg-gradient-to-r from-emerald-500 to-emerald-600">
+          <Button onClick={() => setIsCreating(true)} leftIcon={Plus} className="shadow-lg shadow-blue-500/20 bg-gradient-to-r from-blue-500 to-blue-600">
             Ajouter un Produit
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-sky-400 to-sky-500 text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <Package className="w-8 h-8 opacity-80" />
               <TrendingUp className="w-5 h-5" />
             </div>
-            <p className="text-blue-100 text-sm mb-1">Total Produits</p>
-            <p className="text-3xl font-bold">{products.length}</p>
+            <p className="text-sm opacity-90 mb-1">Total Produits</p>
+            <h3 className="text-3xl font-bold">{products.length}</h3>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-sky-400 to-sky-500 text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <CheckCircle2 className="w-8 h-8 opacity-80" />
               <TrendingUp className="w-5 h-5" />
             </div>
-            <p className="text-emerald-100 text-sm mb-1">En Stock</p>
-            <p className="text-3xl font-bold">{inStockCount}</p>
+            <p className="text-sm opacity-90 mb-1">En Stock</p>
+            <h3 className="text-3xl font-bold">{products.filter(p => p.status === 'in_stock').length}</h3>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-sky-400 to-sky-500 text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <DollarSign className="w-8 h-8 opacity-80" />
               <TrendingUp className="w-5 h-5" />
             </div>
-            <p className="text-purple-100 text-sm mb-1">Valeur Totale</p>
-            <p className="text-3xl font-bold">{totalValue.toFixed(0)} €</p>
+            <p className="text-sm opacity-90 mb-1">Valeur Totale</p>
+            <h3 className="text-3xl font-bold">{products.reduce((sum, p) => sum + p.price, 0).toFixed(2)} €</h3>
           </CardContent>
         </Card>
 
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500 to-orange-600 text-white">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-sky-400 to-sky-500 text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
               <Star className="w-8 h-8 opacity-80" />
               <TrendingUp className="w-5 h-5" />
             </div>
-            <p className="text-orange-100 text-sm mb-1">Catégories</p>
-            <p className="text-3xl font-bold">{categories.length - 1}</p>
+            <p className="text-sm opacity-90 mb-1">Catégories</p>
+            <h3 className="text-3xl font-bold">{new Set(products.map(p => p.category)).size}</h3>
           </CardContent>
         </Card>
       </div>
@@ -804,7 +831,7 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
             <div 
               key={product.id} 
               className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 overflow-hidden cursor-pointer"
-              onClick={() => setSelectedProduct(product)}
+              onClick={() => handleSelectProduct(product)}
             >
               <div className="relative aspect-square overflow-hidden bg-gray-100">
                 <Image 
@@ -823,7 +850,7 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-3">
                   <button 
                     className="p-3 bg-white text-gray-700 rounded-xl hover:text-blue-600 hover:scale-110 transition-all shadow-xl"
-                    onClick={(e) => { e.stopPropagation(); setSelectedProduct(product); }}
+                    onClick={(e) => { e.stopPropagation(); handleSelectProduct(product); }}
                   >
                     <Eye className="w-5 h-5" />
                   </button>
@@ -889,7 +916,7 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
               <div 
                 key={product.id}
                 className="p-6 hover:bg-blue-50/30 transition-all cursor-pointer group"
-                onClick={() => setSelectedProduct(product)}
+                onClick={() => handleSelectProduct(product)}
               >
                 <div className="flex items-center gap-6">
                   <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">

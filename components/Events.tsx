@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Calendar, MapPin, Users, Edit3, Trash2, Plus, Image as ImageIcon, Save, X, ChevronLeft, Search, Filter, Grid, List, Clock, Tag, Share2, Download, Eye, Copy, TrendingUp, Upload, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -11,6 +12,7 @@ import { Branch, EventItem } from '@/lib/types/events';
 import { getEventsByBranch, createEvent } from '@/lib/services/events.service';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getMockEventsByBranch } from '@/lib/constants/mockEvents';
+import { BRANCHES } from '@/lib/constants/branches';
 import Image from 'next/image';
 
 interface EventsProps {
@@ -19,6 +21,8 @@ interface EventsProps {
 
 export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
   const { user } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
   const [isCreating, setIsCreating] = useState(autoOpenCreate);
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -43,12 +47,34 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
     tags: [] as string[],
   });
 
+  // Restaurer la branche depuis l'URL au chargement
+  useEffect(() => {
+    const branchId = searchParams.get('branch');
+    if (branchId && !selectedBranch) {
+      const branch = BRANCHES.find(b => b.id === branchId);
+      if (branch) {
+        setSelectedBranch(branch);
+      }
+    }
+  }, [searchParams, selectedBranch]);
+
   // Charger les événements quand une branche est sélectionnée
   useEffect(() => {
     if (selectedBranch) {
       loadEvents(selectedBranch.id);
     }
   }, [selectedBranch]);
+
+  // Restaurer l'événement sélectionné depuis l'URL après le chargement des événements
+  useEffect(() => {
+    const eventId = searchParams.get('event');
+    if (eventId && events.length > 0 && !selectedEvent) {
+      const event = events.find(e => e.id === eventId);
+      if (event) {
+        setSelectedEvent(event);
+      }
+    }
+  }, [searchParams, events, selectedEvent]);
 
   const loadEvents = async (branchId: string) => {
     setIsLoading(true);
@@ -80,11 +106,26 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
   };
 
   const handleBackToBranches = () => {
+    router.push('/events');
     setSelectedBranch(null);
     setEvents([]);
     setSelectedEvent(null);
     setIsCreating(false);
     setError(null);
+  };
+
+  const handleSelectEvent = (event: EventItem) => {
+    if (selectedBranch) {
+      router.push(`/events?branch=${selectedBranch.id}&event=${event.id}`);
+    }
+    setSelectedEvent(event);
+  };
+
+  const handleBackToEventList = () => {
+    if (selectedBranch) {
+      router.push(`/events?branch=${selectedBranch.id}`);
+    }
+    setSelectedEvent(null);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -527,7 +568,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
       <div className="animate-in fade-in duration-500">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(null)}>
+            <Button variant="ghost" size="sm" onClick={handleBackToEventList}>
               <ChevronLeft className="w-4 h-4 mr-1" /> Retour à la liste
             </Button>
             <div className="flex gap-2">
@@ -718,7 +759,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
             <div 
               key={event.id} 
               className="group bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 overflow-hidden flex flex-col h-full cursor-pointer"
-              onClick={() => setSelectedEvent(event)}
+              onClick={() => handleSelectEvent(event)}
             >
               <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
                 <div className="absolute inset-0 flex items-center justify-center text-white">
@@ -764,7 +805,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                     leftIcon={Edit3}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedEvent(event);
+                      handleSelectEvent(event);
                     }}
                   >
                     Éditer
@@ -803,7 +844,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
               <div 
                 key={event.id}
                 className="p-6 hover:bg-blue-50/30 transition-all cursor-pointer group"
-                onClick={() => setSelectedEvent(event)}
+                onClick={() => handleSelectEvent(event)}
               >
                 <div className="flex items-center gap-6">
                   <div className="relative w-32 h-20 rounded-xl overflow-hidden flex-shrink-0">

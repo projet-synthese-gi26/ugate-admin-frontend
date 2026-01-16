@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -43,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeView, userEmail = 'admin@ugate.com' }) => {
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -54,7 +56,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans text-gray-900">
+    <div className="h-screen bg-gray-50 flex font-sans text-gray-900 overflow-hidden">
       {isMobileMenuOpen && (
         <div 
           className="fixed inset-0 bg-gray-900/60 z-40 lg:hidden backdrop-blur-sm transition-opacity"
@@ -63,7 +65,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
       )}
 
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50 w-[280px] bg-white/80 backdrop-blur-xl border-r border-gray-200/50 transform transition-all duration-300 ease-out shadow-2xl
+        fixed inset-y-0 left-0 z-50 w-[280px] bg-white/80 backdrop-blur-xl border-r border-gray-200/50 transform transition-all duration-300 ease-out shadow-2xl
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="h-full flex flex-col">
@@ -94,6 +96,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
                 <button
                   key={item.id}
                   onClick={() => {
+                    const path = item.id === 'dashboard' ? '/' : `/${item.id}`;
+                    router.push(path);
                     onChangeView(item.id);
                     setIsMobileMenuOpen(false);
                   }}
@@ -151,8 +155,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 shadow-sm">
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-[280px]">
+        <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 flex items-center justify-between px-4 lg:px-8 z-30 shadow-sm flex-shrink-0">
           <div className="flex items-center gap-4">
             <button 
               className="lg:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors"
@@ -246,7 +250,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
           </div>
         </main>
 
-        <footer className="bg-white/80 backdrop-blur-xl border-t border-gray-200/50 px-8 py-4">
+        <footer className="bg-white/80 backdrop-blur-xl border-t border-gray-200/50 px-8 py-4 flex-shrink-0">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-600">
             <div className="flex items-center gap-6">
               <span>© 2024 UGate Admin. Tous droits réservés.</span>

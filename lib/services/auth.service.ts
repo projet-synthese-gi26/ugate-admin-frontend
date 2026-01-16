@@ -22,7 +22,7 @@ const STORAGE_KEYS = {
 };
 
 /**
- * 🔐 FONCTION 1 : Connexion
+ *  FONCTION 1 : Connexion
  * 
  * Appelle l'API de login et sauvegarde les tokens
  * 
@@ -32,6 +32,7 @@ const STORAGE_KEYS = {
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
   try {
     console.log('🔄 Tentative de connexion pour:', credentials.identifier);
+    console.log('🌐 URL API:', `${AUTH_API_URL}/login`);
     
     const response = await fetch(`${AUTH_API_URL}/login`, {
       method: 'POST',
@@ -42,7 +43,9 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
     });
 
     if (!response.ok) {
-      throw new Error('Échec de la connexion');
+      const errorText = await response.text();
+      console.error(`❌ HTTP ${response.status}:`, errorText);
+      throw new Error(`Échec de la connexion (${response.status}): ${errorText || response.statusText}`);
     }
 
     const data: LoginResponse = await response.json();
@@ -54,13 +57,23 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
     
     return data;
   } catch (error) {
+    // Identifier le type d'erreur
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error('❌ Erreur réseau: Impossible de joindre le serveur d\'authentification');
+      console.error('   Vérifiez:');
+      console.error('   1. Votre connexion internet');
+      console.error('   2. Que l\'API est accessible:', AUTH_API_URL);
+      console.error('   3. Les paramètres CORS du serveur');
+      throw new Error('Impossible de joindre le serveur. Vérifiez votre connexion internet.');
+    }
+    
     console.error('❌ Erreur lors de la connexion:', error);
     throw error;
   }
 }
 
 /**
- * 📝 FONCTION 12 : Inscription
+ *  FONCTION 12 : Inscription
  * 
  * Appelle l'API de register (sans connexion automatique)
  * 
@@ -92,20 +105,20 @@ export async function register(credentials: RegisterCredentials): Promise<LoginR
     
     return data;
   } catch (error) {
-    console.error('❌ Erreur lors de l\'inscription:', error);
+    console.error(' Erreur lors de l\'inscription:', error);
     throw error;
   }
 }
 
 /**
- * 💾 FONCTION 2 : Sauvegarder les données d'authentification
+ *  FONCTION 2 : Sauvegarder les données d'authentification
  * 
  * Stocke les tokens et les infos utilisateur dans localStorage
  * 
  * @param data - Données de connexion (tokens + user)
  */
 export function saveAuthData(data: LoginResponse): void {
-  console.log('💾 Sauvegarde des données d\'authentification...');
+  console.log(' Sauvegarde des données d\'authentification...');
   
   // Calculer la date d'expiration du token (par défaut 15 minutes)
   const expiryTime = Date.now() + (15 * 60 * 1000);
@@ -116,8 +129,8 @@ export function saveAuthData(data: LoginResponse): void {
   localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(data.user));
   localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiryTime.toString());
   
-  console.log('✅ Données sauvegardées avec succès');
-  console.log('⏰ Token expire dans: 15 minutes');
+  console.log(' Données sauvegardées avec succès');
+  console.log(' Token expire dans: 15 minutes');
 }
 
 /**
@@ -209,7 +222,7 @@ export async function refreshAccessToken(): Promise<RefreshTokenResponse> {
 
     const data: RefreshTokenResponse = await response.json();
     
-    console.log('✅ Token rafraîchi avec succès !');
+    console.log(' Token rafraîchi avec succès !');
     
     // Mettre à jour les tokens (par défaut 15 minutes)
     const expiryTime = Date.now() + (15 * 60 * 1000);
