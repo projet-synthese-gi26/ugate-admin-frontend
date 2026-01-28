@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Calendar, MapPin, Users, Edit3, Trash2, Plus, Image as ImageIcon, Save, X, ChevronLeft, Search, Filter, Grid, List, Clock, Tag, Share2, Download, Eye, Copy, TrendingUp, Upload, AlertCircle, Loader2 } from 'lucide-react';
+import { Calendar, MapPin, Users, Edit3, Trash2, Plus, Image as ImageIcon, Save, X, ChevronLeft, Search, Filter, Grid, List, Clock, Tag, Eye, Copy, TrendingUp, Upload, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { Input } from './ui/Input';
 import { Card, CardContent } from './ui/Card';
 import { BranchSelector } from './BranchSelector';
-import { Branch, EventItem } from '@/lib/types/events';
-import { getEventsByBranch, createEvent } from '@/lib/services/events.service';
+import { Branch, EventItem, EventParticipant } from '@/lib/types/events';
+import { getEventsByBranch, createEvent, deleteEvent, getEventParticipants } from '@/lib/services/events.service';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { getMockEventsByBranch } from '@/lib/constants/mockEvents';
 import { BRANCHES } from '@/lib/constants/branches';
@@ -33,6 +33,10 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasLoadedEvents, setHasLoadedEvents] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [participants, setParticipants] = useState<EventParticipant[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
@@ -42,6 +46,48 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
     startTime: '',
     endTime: '',
   });
+
+  const loadEvents = useCallback(async (branchId: string) => {
+    // Éviter les appels multiples
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    setError(null);
+    try {
+      const fetchedEvents = await getEventsByBranch(branchId);
+      
+      // Si l'API retourne des événements, les utiliser
+      if (fetchedEvents && fetchedEvents.length > 0) {
+        setEvents(fetchedEvents);
+        console.log('✅ Événements réels chargés depuis l\'API');
+      } else {
+        // Si aucun événement n'est retourné, afficher un message
+        console.log('📝 Aucun événement trouvé pour cette branche');
+        setEvents([]);
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement des événements:', err);
+      const error = err as Error;
+      
+      // Si l'erreur est une erreur 401, l'utilisateur doit se reconnecter
+      if (error.message && error.message.includes('401')) {
+        setError('Session expirée. Veuillez vous reconnecter.');
+        setEvents([]);
+      } else if (error.message && error.message.includes('Failed to fetch')) {
+        // En cas d'erreur réseau, charger les événements fictifs
+        console.log('📝 Chargement des événements fictifs suite à l\'erreur réseau...');
+        const mockEvents = getMockEventsByBranch(branchId);
+        setEvents(mockEvents);
+        setError('Mode hors ligne - Événements fictifs affichés');
+      } else {
+        // Pour toute autre erreur
+        setError('Erreur lors du chargement des événements. Veuillez réessayer.');
+        setEvents([]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isLoading]);
 
   // Restaurer la branche depuis l'URL au chargement
   useEffect(() => {
@@ -56,10 +102,11 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
 
   // Charger les événements quand une branche est sélectionnée
   useEffect(() => {
-    if (selectedBranch) {
+    if (selectedBranch && !hasLoadedEvents) {
       loadEvents(selectedBranch.id);
+      setHasLoadedEvents(true);
     }
-  }, [selectedBranch]);
+  }, [selectedBranch, hasLoadedEvents, loadEvents]);
 
   // Restaurer l'événement sélectionné depuis l'URL après le chargement des événements
   useEffect(() => {
@@ -72,42 +119,14 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
     }
   }, [searchParams, events, selectedEvent]);
 
-  const loadEvents = async (branchId: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const fetchedEvents = await getEventsByBranch(branchId);
-      
-      // Si l'API retourne des événements, les utiliser
-      if (fetchedEvents && fetchedEvents.length > 0) {
-        setEvents(fetchedEvents);
-      } else {
-        // Sinon, charger les événements fictifs pour tester l'interface
-        console.log('📝 Aucun événement réel trouvé, chargement des événements fictifs...');
-        const mockEvents = getMockEventsByBranch(branchId);
-        setEvents(mockEvents);
-      }
-    } catch (err) {
-      console.error('Erreur lors du chargement des événements:', err);
-      
-      // En cas d'erreur, charger les événements fictifs
-      console.log('📝 Chargement des événements fictifs suite à l\'erreur...');
-      const mockEvents = getMockEventsByBranch(branchId);
-      setEvents(mockEvents);
-      
-      setError('Événements fictifs affichés. Les vrais événements seront disponibles une fois l\'API configurée.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleBackToBranches = () => {
-    router.push('/events');
+    router.push('/dashboard');
     setSelectedBranch(null);
     setEvents([]);
     setSelectedEvent(null);
     setIsCreating(false);
     setError(null);
+    setHasLoadedEvents(false);
   };
 
   const handleSelectEvent = (event: EventItem) => {
@@ -136,7 +155,15 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
   };
 
   const handleSave = async () => {
-    if (!selectedBranch || !user) return;
+    if (!selectedBranch) {
+      setError('Veuillez sélectionner une branche');
+      return;
+    }
+    
+    if (!user || !user.id) {
+      setError('Vous devez être connecté pour créer un événement');
+      return;
+    }
 
     // Validation côté client
     if (!formData.title || formData.title.trim() === '') {
@@ -207,14 +234,50 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
     }
   };
 
-  const handleDelete = (id: string) => {
-    // TODO: Implémenter la suppression via API
-    setEvents(events.filter(e => e.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      await deleteEvent(id);
+      
+      // Retirer l'événement de la liste locale
+      setEvents(events.filter(e => e.id !== id));
+      
+      console.log('✅ Événement supprimé avec succès');
+    } catch (err) {
+      console.error('Erreur lors de la suppression:', err);
+      setError('Impossible de supprimer l\'événement. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDuplicate = (event: EventItem) => {
-    // TODO: Implémenter la duplication via API
-    console.log('Duplication de:', event.title);
+    // Pré-remplir le formulaire avec les données de l'événement à dupliquer
+    setFormData({
+      title: `${event.title} (Copie)`,
+      description: event.description,
+      date: event.date,
+      location: event.location,
+      startTime: event.startTime,
+      endTime: event.endTime
+    });
+    setIsCreating(true);
+  };
+  
+  const handleViewParticipants = async (eventId: string) => {
+    try {
+      setLoadingParticipants(true);
+      const fetchedParticipants = await getEventParticipants(eventId);
+      setParticipants(fetchedParticipants);
+      setShowParticipants(true);
+    } catch (err) {
+      console.error('Erreur lors de la récupération des participants:', err);
+      setError('Impossible de charger les participants');
+    } finally {
+      setLoadingParticipants(false);
+    }
   };
 
   const applyFormatting = (command: string) => {
@@ -486,7 +549,7 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
                       </div>
                       <div className="flex items-center text-sm text-gray-600">
                         <Users className="w-4 h-4 mr-2 text-gray-400" />
-                        {formData.capacity ? `${formData.capacity} places` : "Capacité illimitée"}
+                        Capacité illimitée
                       </div>
                     </div>
                   </div>
@@ -526,6 +589,64 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
     );
   }
 
+  // Si on affiche les participants
+  if (showParticipants && selectedEvent) {
+    return (
+      <div className="animate-in fade-in duration-500">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <Button variant="ghost" size="sm" onClick={() => setShowParticipants(false)}>
+              <ChevronLeft className="w-4 h-4 mr-1" /> Retour aux détails
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleBackToEventList}>
+              <X className="w-4 h-4 mr-1" /> Fermer
+            </Button>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <div className="mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Participants</h2>
+              <p className="text-gray-600">{selectedEvent.title}</p>
+            </div>
+
+            {loadingParticipants ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+              </div>
+            ) : participants.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-gray-900">
+                    {participants.length} participant{participants.length > 1 ? 's' : ''}
+                  </h3>
+                  <Badge variant="success">{selectedEvent.participantCount} inscrits au total</Badge>
+                </div>
+                <div className="grid gap-2">
+                  {participants.map((participant, index) => (
+                    <div key={participant.userId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center font-semibold">
+                        {participant.fullName ? participant.fullName.substring(0, 2).toUpperCase() : (index + 1)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{participant.fullName || 'Participant ' + (index + 1)}</p>
+                        <p className="text-sm text-gray-500">ID: {participant.userId}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <p className="text-gray-600">Aucun participant pour le moment</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (selectedEvent) {
     return (
       <div className="animate-in fade-in duration-500">
@@ -535,9 +656,35 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
               <ChevronLeft className="w-4 h-4 mr-1" /> Retour à la liste
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" leftIcon={Share2}>Partager</Button>
-              <Button variant="outline" size="sm" leftIcon={Download}>Exporter</Button>
-              <Button variant="secondary" size="sm" leftIcon={Edit3}>Modifier</Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                leftIcon={Users}
+                onClick={() => handleViewParticipants(selectedEvent.id)}
+              >
+                Voir les participants
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                leftIcon={Copy}
+                onClick={() => handleDuplicate(selectedEvent)}
+              >
+                Dupliquer
+              </Button>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                leftIcon={Trash2}
+                onClick={() => {
+                  if (window.confirm('Êtes-vous sûr de vouloir supprimer cet événement ?')) {
+                    handleDelete(selectedEvent.id);
+                    handleBackToEventList();
+                  }
+                }}
+              >
+                Supprimer
+              </Button>
             </div>
           </div>
 
@@ -624,6 +771,8 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
       </div>
     );
   }
+
+  // La modal des participants n'est plus nécessaire car on utilise une vue complète
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -857,6 +1006,8 @@ export const Events: React.FC<EventsProps> = ({ autoOpenCreate = false }) => {
           </div>
         </Card>
       )}
+      
+      {/* Modal des participants */}
     </div>
   );
 };

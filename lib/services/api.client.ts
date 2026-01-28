@@ -76,11 +76,18 @@ export async function apiGet<T>(url: string, options: RequestInit = {}): Promise
         }
         throw new Error('Non autorisé');
       }
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      
+      // Capturer les détails de l'erreur
+      const errorText = await response.text();
+      console.error(`❌ HTTP ${response.status}:`, errorText);
+      console.error('📋 URL:', url);
+      
+      throw new Error(`Erreur HTTP: ${response.status} - ${errorText || response.statusText}`);
     }
 
     const data = await response.json();
     console.log('✅ Requête réussie');
+    console.log('📦 Données reçues:', data);
     return data as T;
   } catch (error) {
     console.error('❌ Erreur lors de la requête GET:', error);
@@ -185,6 +192,50 @@ export async function apiPut<T>(url: string, body?: unknown, options: RequestIni
 }
 
 /**
+ * 🔧 FONCTION : PATCH Request
+ * 
+ * Effectue une requête PATCH avec le token automatiquement ajouté
+ * 
+ * @param url - URL de la requête
+ * @param body - Corps de la requête
+ * @param options - Options fetch optionnelles
+ * @returns Réponse de l'API
+ */
+export async function apiPatch<T>(url: string, body?: unknown, options: RequestInit = {}): Promise<T> {
+  try {
+    console.log('🌐 Appel API PATCH vers:', url);
+    
+    const headers = await getAuthHeaders(options.headers);
+    
+    const response = await fetch(url, {
+      ...options,
+      method: 'PATCH',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        console.error('❌ Non autorisé (401)');
+        logout();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+        throw new Error('Non autorisé');
+      }
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Requête réussie');
+    return data as T;
+  } catch (error) {
+    console.error('❌ Erreur lors de la requête PATCH:', error);
+    throw error;
+  }
+}
+
+/**
  * 🗑️ FONCTION : DELETE Request
  * 
  * Effectue une requête DELETE avec le token automatiquement ajouté
@@ -193,6 +244,59 @@ export async function apiPut<T>(url: string, body?: unknown, options: RequestIni
  * @param options - Options fetch optionnelles
  * @returns Réponse de l'API
  */
+/**
+ * 📤 FONCTION : POST Request avec Multipart/Form-Data
+ * 
+ * Effectue une requête POST avec upload de fichiers (multipart/form-data)
+ * 
+ * @param url - URL de la requête
+ * @param formData - FormData contenant les fichiers et données
+ * @param options - Options fetch optionnelles
+ * @returns Réponse de l'API
+ */
+export async function apiPostMultipart<T>(url: string, formData: FormData, options: RequestInit = {}): Promise<T> {
+  try {
+    console.log('🌐 Appel API POST (multipart) vers:', url);
+    
+    // Pour multipart/form-data, ne pas définir Content-Type (le navigateur le fait automatiquement avec boundary)
+    const headers = await getAuthHeaders();
+    
+    // Retirer Content-Type pour laisser le navigateur le gérer
+    const headersObj = headers as Record<string, string>;
+    delete headersObj['Content-Type'];
+    
+    const response = await fetch(url, {
+      ...options,
+      method: 'POST',
+      headers: headersObj,
+      body: formData,
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        console.error('❌ Non autorisé (401)');
+        logout();
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
+        throw new Error('Non autorisé');
+      }
+      
+      const errorText = await response.text();
+      console.error(`❌ HTTP ${response.status}:`, errorText);
+      
+      throw new Error(`Erreur HTTP: ${response.status} - ${errorText || response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Requête réussie');
+    return data as T;
+  } catch (error) {
+    console.error('❌ Erreur lors de la requête POST multipart:', error);
+    throw error;
+  }
+}
+
 export async function apiDelete<T>(url: string, options: RequestInit = {}): Promise<T> {
   try {
     console.log('🌐 Appel API DELETE vers:', url);

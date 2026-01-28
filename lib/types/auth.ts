@@ -27,6 +27,7 @@ export interface UserInfo {
   service: string;
   roles: string[];
   permissions: string[];
+  syndicatId?: string; // ID du syndicat auquel l'utilisateur appartient
 }
 
 /**

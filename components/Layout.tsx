@@ -21,10 +21,12 @@ import {
   TrendingUp,
   Star,
   MessageSquare,
-  HelpCircle
+  HelpCircle,
+  Building2
 } from 'lucide-react';
 import { NavItem } from '@/lib/types';
 import { Badge } from './ui/Badge';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import Image from 'next/image';
 
 interface LayoutProps {
@@ -36,6 +38,7 @@ interface LayoutProps {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Tableau de bord', icon: LayoutDashboard },
+  { id: 'branches', label: 'Branches', icon: Building2 },
   { id: 'events', label: 'Événements', icon: Calendar },
   { id: 'products', label: 'Produits', icon: Package },
   { id: 'services', label: 'Services', icon: Briefcase },
@@ -45,6 +48,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeView, userEmail = 'admin@ugate.com' }) => {
   const router = useRouter();
+  const { selectedSyndicate } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -207,6 +211,19 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentView, onChangeV
               onClick={() => setIsDarkMode(!isDarkMode)}
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
+            <div className="h-8 w-px bg-gray-200 hidden md:block" />
+
+            <button 
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+              onClick={() => router.push('/syndicate-selector')}
+              title={selectedSyndicate ? `Syndicat actuel: ${selectedSyndicate.name}` : 'Sélectionner un syndicat'}
+            >
+              <Building2 className="w-5 h-5" />
+              <span className="hidden xl:block">
+                {selectedSyndicate ? selectedSyndicate.name.substring(0, 20) + (selectedSyndicate.name.length > 20 ? '...' : '') : 'Aucun syndicat'}
+              </span>
             </button>
 
             <div className="h-8 w-px bg-gray-200 hidden md:block" />

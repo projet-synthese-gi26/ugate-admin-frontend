@@ -19,6 +19,7 @@ import {
   refreshAccessToken
 } from '@/lib/services/auth.service';
 import { LoginCredentials, RegisterCredentials, UserInfo } from '@/lib/types/auth';
+import { SyndicateResponse } from '@/lib/types/syndicate';
 
 /**
  * Interface : État du Contexte
@@ -28,10 +29,12 @@ interface AuthContextType {
   isLoading: boolean;
   user: UserInfo | null;
   error: string | null;
+  selectedSyndicate: SyndicateResponse | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
   checkAuthentication: () => void;
+  selectSyndicate: (syndicate: SyndicateResponse | null) => void;
 }
 
 /**
@@ -47,6 +50,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSyndicate, setSelectedSyndicate] = useState<SyndicateResponse | null>(null);
 
   /**
    * Vérifier l'authentification
@@ -135,8 +139,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsAuthenticated(false);
     setUser(null);
     setError(null);
+    setSelectedSyndicate(null);
+    localStorage.removeItem('selectedSyndicate');
     
     console.log('✅ Déconnexion réussie');
+  };
+
+  /**
+   * Sélectionner un syndicat
+   */
+  const selectSyndicate = (syndicate: SyndicateResponse | null) => {
+    if (syndicate) {
+      console.log('🏢 Sélection du syndicat:', syndicate.name);
+      setSelectedSyndicate(syndicate);
+      // Sauvegarder dans localStorage pour persistance
+      localStorage.setItem('selectedSyndicate', JSON.stringify(syndicate));
+    } else {
+      console.log('🏢 Désélection du syndicat');
+      setSelectedSyndicate(null);
+      localStorage.removeItem('selectedSyndicate');
+    }
   };
 
   /**
@@ -145,6 +167,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     checkAuthentication();
   }, []);
+
+  /**
+   * Restaurer le syndicat uniquement si authentifié
+   */
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) return;
+    
+    // Restaurer le syndicat sélectionné depuis localStorage
+    const savedSyndicate = localStorage.getItem('selectedSyndicate');
+    if (savedSyndicate) {
+      try {
+        const syndicate = JSON.parse(savedSyndicate);
+        setSelectedSyndicate(syndicate);
+        console.log('🏢 Syndicat restauré:', syndicate.name);
+      } catch (err) {
+        console.error('❌ Erreur lors de la restauration du syndicat:', err);
+        localStorage.removeItem('selectedSyndicate');
+      }
+    }
+  }, [isAuthenticated, isLoading]);
 
   /**
    * Rafraîchissement automatique du token
@@ -176,10 +218,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isLoading,
     user,
     error,
+    selectedSyndicate,
     login,
     register,
     logout,
     checkAuthentication,
+    selectSyndicate,
   };
 
   return (

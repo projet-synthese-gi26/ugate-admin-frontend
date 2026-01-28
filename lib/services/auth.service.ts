@@ -83,18 +83,55 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
 export async function register(credentials: RegisterCredentials): Promise<LoginResponse> {
   try {
     console.log('📝 Tentative d\'inscription pour:', credentials.email);
+    console.log('🌐 URL API:', `${AUTH_API_URL}/register`);
+    console.log('📋 Données complètes envoyées:', {
+      username: credentials.username,
+      firstName: credentials.firstName,
+      lastName: credentials.lastName,
+      email: credentials.email,
+      phone: credentials.phone,
+      password: '***',
+      service: credentials.service,
+      roles: credentials.roles
+    });
+    
+    // Créer FormData pour multipart/form-data
+    const formData = new FormData();
+    
+    // L'API attend un champ "data" contenant le RegisterRequest en JSON
+    const registerData = {
+      username: credentials.username,
+      password: credentials.password,
+      email: credentials.email,
+      phone: credentials.phone,
+      firstName: credentials.firstName,
+      lastName: credentials.lastName,
+      service: credentials.service,
+      roles: credentials.roles
+    };
+    
+    // Ajouter les données en tant que blob JSON
+    formData.append('data', new Blob([JSON.stringify(registerData)], { type: 'application/json' }));
     
     const response = await fetch(`${AUTH_API_URL}/register`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(credentials),
+      // Ne pas définir Content-Type - laisse le navigateur gérer multipart/form-data
+      body: formData,
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'Échec de l\'inscription');
+      const errorText = await response.text();
+      let errorMessage = 'Échec de l\'inscription';
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        errorMessage = errorText || `Erreur HTTP ${response.status}`;
+      }
+      
+      console.error(`❌ HTTP ${response.status}:`, errorMessage);
+      throw new Error(errorMessage);
     }
 
     const data: LoginResponse = await response.json();
@@ -105,7 +142,17 @@ export async function register(credentials: RegisterCredentials): Promise<LoginR
     
     return data;
   } catch (error) {
-    console.error(' Erreur lors de l\'inscription:', error);
+    // Identifier le type d'erreur
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error('❌ Erreur réseau: Impossible de joindre le serveur d\'authentification');
+      console.error('   Vérifiez:');
+      console.error('   1. Votre connexion internet');
+      console.error('   2. Que l\'API est accessible:', AUTH_API_URL);
+      console.error('   3. Les paramètres CORS du serveur');
+      throw new Error('Impossible de joindre le serveur. Vérifiez votre connexion internet.');
+    }
+    
+    console.error('❌ Erreur lors de l\'inscription:', error);
     throw error;
   }
 }

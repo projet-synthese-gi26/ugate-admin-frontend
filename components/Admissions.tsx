@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Check, X, Phone, Mail, FileText, Calendar, Building, ChevronRight, XCircle, CheckCircle, MessageSquare, Download, Filter, Search, Clock, User, TrendingUp, AlertCircle, Eye } from 'lucide-react';
+import { X, Phone, Mail, FileText, Calendar, Building, ChevronRight, XCircle, CheckCircle, MessageSquare, Download, Filter, Search, Clock, User, TrendingUp, AlertCircle, Eye, Loader2 } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { MOCK_ADMISSIONS } from '@/lib/constants';
 import { Admission } from '@/lib/types';
+import { getSyndicateRequests, processRequest, MembershipRequest } from '@/lib/services/admissions.service';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import Image from 'next/image';
 
 interface AdmissionsProps {
@@ -17,16 +19,90 @@ interface AdmissionsProps {
 export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [admissions, setAdmissions] = useState<Admission[]>(MOCK_ADMISSIONS);
+  const { selectedSyndicate } = useAuth();
+  const [admissions, setAdmissions] = useState<Admission[]>([]);
   const [selectedAdmission, setSelectedAdmission] = useState<Admission | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'accepted' | 'rejected'>(autoOpenCreate ? 'pending' : 'pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotes, setShowNotes] = useState(false);
   const [note, setNote] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleStatusUpdate = (id: string, status: 'accepted' | 'rejected') => {
-    setAdmissions(admissions.map(a => a.id === id ? { ...a, status } : a));
-    setSelectedAdmission(null);
+  // Charger les demandes d'adhésion depuis l'API
+  const loadAdmissions = useCallback(async () => {
+    if (!selectedSyndicate) {
+      console.log('📦 Pas de syndicat sélectionné, utilisation des données fictives');
+      setAdmissions(MOCK_ADMISSIONS);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Utiliser le nouvel endpoint GET /admin/syndicates/{syndicatId}/requests
+      const requests = await getSyndicateRequests(selectedSyndicate.id);
+      
+      // Convertir les demandes API au format local
+      const convertedAdmissions: Admission[] = requests.map((req: MembershipRequest) => ({
+        id: req.id,
+        fullName: 'Membre', // L'API ne retourne pas fullName, on utilise un placeholder
+        email: 'membre@example.com', // L'API ne retourne pas email directement
+        phone: '+237 6XX XXX XXX',
+        company: 'Entreprise',
+        position: 'Poste',
+        submittedAt: req.createdAt,
+        status: req.status === 'PENDING' ? 'pending' : req.status === 'APPROVED' ? 'accepted' : 'rejected',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent('Membre')}&background=random`,
+        motivation: req.motivation,
+      }));
+      
+      setAdmissions(convertedAdmissions);
+      console.log(`✅ ${convertedAdmissions.length} demande(s) chargée(s) depuis l'API`);
+    } catch (err) {
+      console.error('❌ Erreur lors du chargement des demandes:', err);
+      setError('Impossible de charger les demandes. Affichage des données fictives.');
+      setAdmissions(MOCK_ADMISSIONS);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedSyndicate]);
+
+  // Charger les demandes au montage et quand le syndicat change
+  useEffect(() => {
+    loadAdmissions();
+  }, [loadAdmissions]);
+
+  const handleStatusUpdate = async (id: string, status: 'accepted' | 'rejected') => {
+    if (!selectedSyndicate) {
+      // Mode fictif
+      setAdmissions(admissions.map(a => a.id === id ? { ...a, status } : a));
+      setSelectedAdmission(null);
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      
+      // Utiliser le nouvel endpoint POST /admin/syndicates/requests/{requestId}/process
+      const approve = status === 'accepted';
+      await processRequest(id, approve, note || undefined);
+      
+      console.log(`✅ Demande ${approve ? 'approuvée' : 'rejetée'}`);
+      
+      // Recharger les demandes
+      await loadAdmissions();
+      setSelectedAdmission(null);
+      setNote('');
+    } catch (err) {
+      console.error('❌ Erreur lors du traitement:', err);
+      setError(err instanceof Error ? err.message : 'Erreur lors du traitement de la demande');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const filteredAdmissions = admissions.filter(a => {
@@ -256,14 +332,25 @@ export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }
                         variant="secondary" 
                         className="w-full bg-white text-emerald-600 hover:bg-emerald-50 border-0 shadow-lg font-bold"
                         onClick={() => handleStatusUpdate(selectedAdmission.id, 'accepted')}
+                        disabled={isProcessing}
                       >
-                        <CheckCircle className="w-5 h-5 mr-2" />
-                        Accepter le Dossier
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Traitement...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-5 h-5 mr-2" />
+                            Accepter le Dossier
+                          </>
+                        )}
                       </Button>
                       <Button 
                         variant="secondary" 
                         className="w-full bg-white/20 hover:bg-white/30 text-white border-0"
                         onClick={() => setShowNotes(!showNotes)}
+                        disabled={isProcessing}
                       >
                         <MessageSquare className="w-5 h-5 mr-2" />
                         Ajouter une Note
@@ -272,9 +359,19 @@ export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }
                         variant="secondary" 
                         className="w-full bg-white/20 hover:bg-red-500 text-white border-0"
                         onClick={() => handleStatusUpdate(selectedAdmission.id, 'rejected')}
+                        disabled={isProcessing}
                       >
-                        <XCircle className="w-5 h-5 mr-2" />
-                        Refuser
+                        {isProcessing ? (
+                          <>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                            Traitement...
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="w-5 h-5 mr-2" />
+                            Refuser
+                          </>
+                        )}
                       </Button>
                     </div>
                   ) : (
@@ -331,8 +428,28 @@ export const Admissions: React.FC<AdmissionsProps> = ({ autoOpenCreate = false }
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Chargement des demandes d&apos;adhésion...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {error && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-yellow-800">{error}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">

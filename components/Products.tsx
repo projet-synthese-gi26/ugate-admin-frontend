@@ -9,6 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Input } from './ui/Input';
 import { MOCK_PRODUCTS } from '@/lib/constants';
 import { Product } from '@/lib/types';
+import { ProductItem } from '@/lib/types/products';
+import { getProductsBySyndicat, createProduct, updateProduct, updateProductStock, deleteProduct } from '@/lib/services/products.service';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import Image from 'next/image';
 
 interface ProductHistory {
@@ -28,7 +31,10 @@ interface ProductsProps {
 export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, selectedSyndicate } = useAuth();
   const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isCreating, setIsCreating] = useState(autoOpenCreate);
@@ -60,7 +66,58 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
     category: '',
     description: '',
     stock: '',
+    imageUrl: '',
   });
+
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+
+  // Charger les produits réels depuis l'API au montage du composant
+  useEffect(() => {
+    loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadProducts = async () => {
+    if (!selectedSyndicate) {
+      console.log('⚠️ Aucun syndicat sélectionné');
+      return;
+    }
+
+    // Toujours afficher les produits fictifs d'abord
+    const mockProductsWithFlag = MOCK_PRODUCTS.map(p => ({
+      ...p,
+      isMock: true
+    }));
+    setProducts(mockProductsWithFlag as Product[]);
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const syndicatId = selectedSyndicate.id;
+      
+      if (!syndicatId) {
+        console.log('⚠️ Aucun syndicat sélectionné');
+        return;
+      }
+      
+      const apiProducts = await getProductsBySyndicat(syndicatId);
+      
+      // Combiner les produits fictifs avec les produits réels de l'API
+      const combinedProducts = [...mockProductsWithFlag, ...apiProducts];
+      setProducts(combinedProducts as Product[]);
+      
+      console.log(`✅ ${apiProducts.length} produit(s) réel(s) + ${MOCK_PRODUCTS.length} produit(s) fictif(s)`);
+    } catch (err) {
+      // Erreur backend silencieuse - les produits fictifs sont déjà affichés
+      // Ne pas afficher d'erreur à l'utilisateur pour ne pas perturber l'expérience
+      console.log('ℹ️ Utilisation des produits fictifs (backend non disponible)');
+      // Les produits fictifs sont déjà affichés
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const [productHistory] = useState<ProductHistory[]>([
     { id: '1', action: 'Création', field: 'Produit', oldValue: '-', newValue: 'Créé', date: '2024-01-15', user: 'Admin Principal' },
@@ -101,9 +158,29 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
     ));
   };
 
-  const handleDelete = (id: string) => {
-    setProducts(products.filter(p => p.id !== id));
-    setSelectedProduct(null);
+  const handleDelete = async (id: string) => {
+    const product = products.find(p => p.id === id);
+    
+    // Si c'est un produit fictif, suppression locale uniquement
+    if (product && (product as any).isMock) {
+      setProducts(products.filter(p => p.id !== id));
+      setSelectedProduct(null);
+      return;
+    }
+    
+    // Si c'est un produit réel, appeler l'API
+    try {
+      setIsLoading(true);
+      await deleteProduct(id);
+      setProducts(products.filter(p => p.id !== id));
+      setSelectedProduct(null);
+      console.log('✅ Produit supprimé avec succès');
+    } catch (err) {
+      console.error('❌ Erreur lors de la suppression:', err);
+      setError('Impossible de supprimer le produit. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDuplicate = (product: Product) => {
@@ -111,39 +188,145 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
     setProducts([...products, duplicated]);
   };
 
-  const handleSave = () => {
-    const newProduct: Product = {
-      id: String(products.length + 1),
-      title: formData.title,
-      price: parseFloat(formData.price),
-      image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=400&fit=crop',
-      status: 'in_stock',
-      sku: formData.sku,
-      category: formData.category,
-    };
-    setProducts([...products, newProduct]);
-    setIsCreating(false);
-    setFormData({ title: '', price: '', sku: '', category: '', description: '', stock: '' });
-  };
-
-  const handleStockAdjustment = () => {
-    if (selectedProduct && stockAdjustment.quantity) {
-      const currentStock = 156;
-      const adjustment = parseInt(stockAdjustment.quantity);
-      const newStock = currentStock + adjustment;
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Vérifier le type de fichier
+      if (!file.type.startsWith('image/')) {
+        setError('Veuillez sélectionner un fichier image valide (PNG, JPG, etc.)');
+        return;
+      }
       
-      alert(`Stock ajusté: ${currentStock} → ${newStock}\nRaison: ${stockAdjustment.reason || 'Non spécifiée'}`);
+      // Vérifier la taille (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('L\'image ne doit pas dépasser 5MB');
+        return;
+      }
       
-      setShowStockModal(false);
-      setStockAdjustment({ quantity: '', reason: '' });
+      setImageFile(file);
+      
+      // Créer une preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      
+      console.log('🖼️ Image sélectionnée:', file.name, file.size, 'bytes');
     }
   };
 
-  const handlePriceUpdate = () => {
-    if (selectedProduct && priceUpdate.newPrice) {
-      const oldPrice = selectedProduct.price;
-      const newPrice = parseFloat(priceUpdate.newPrice);
+  const handleSave = async () => {
+    // Validation des champs obligatoires
+    if (!formData.title || !formData.price || !formData.sku || !formData.category) {
+      setError('Veuillez remplir tous les champs obligatoires (Titre, Prix, SKU, Catégorie)');
+      return;
+    }
+
+    // Vérifier qu'une image est sélectionnée
+    if (!imageFile) {
+      setError('Veuillez sélectionner une image pour le produit.');
+      return;
+    }
+
+    // Vérifier qu'un syndicat est sélectionné
+    if (!selectedSyndicate) {
+      setError('Vous devez sélectionner un syndicat pour créer un produit.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
       
+      const syndicatId = selectedSyndicate.id;
+      const productData = {
+        syndicatId,
+        name: formData.title,
+        description: formData.description || 'Aucune description',
+        price: parseFloat(formData.price),
+        sku: formData.sku,
+        category: formData.category,
+        stock: parseInt(formData.stock) || 0,
+        isActive: true
+      };
+      
+      console.log('📦 Création du produit:', productData);
+      
+      const createdProduct = await createProduct(productData, imageFile);
+      
+      // Ajouter le nouveau produit à la liste
+      const newProduct: Product = {
+        id: createdProduct.id,
+        title: createdProduct.name,
+        price: createdProduct.price,
+        image: createdProduct.image?.url || imagePreview || 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=400&fit=crop',
+        status: createdProduct.stock > 0 ? 'in_stock' : 'out_of_stock',
+        sku: createdProduct.sku,
+        category: createdProduct.category,
+      };
+      
+      setProducts([...products, newProduct]);
+      setIsCreating(false);
+      setFormData({ title: '', price: '', sku: '', category: '', description: '', stock: '' });
+      setImageFile(null);
+      setImagePreview(null);
+      
+      console.log('✅ Produit créé avec succès:', createdProduct.id);
+    } catch (err) {
+      console.error('❌ Erreur lors de la création:', err);
+      setError('Impossible de créer le produit. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStockAdjustment = async () => {
+    if (!selectedProduct || !stockAdjustment.quantity) return;
+    
+    // Si c'est un produit fictif, mise à jour locale uniquement
+    if ((selectedProduct as any).isMock) {
+      alert(`Stock ajusté (produit fictif)\nRaison: ${stockAdjustment.reason || 'Non spécifiée'}`);
+      setShowStockModal(false);
+      setStockAdjustment({ quantity: '', reason: '' });
+      return;
+    }
+    
+    // Si c'est un produit réel, appeler l'API
+    try {
+      setIsLoading(true);
+      const newStock = parseInt(stockAdjustment.quantity);
+      
+      await updateProductStock(selectedProduct.id, newStock);
+      
+      // Mettre à jour localement
+      setProducts(products.map(p => 
+        p.id === selectedProduct.id 
+          ? { ...p, status: newStock > 0 ? 'in_stock' : 'out_of_stock' }
+          : p
+      ));
+      
+      alert(`Stock mis à jour: ${newStock}\nRaison: ${stockAdjustment.reason || 'Non spécifiée'}`);
+      
+      setShowStockModal(false);
+      setStockAdjustment({ quantity: '', reason: '' });
+      console.log('✅ Stock mis à jour avec succès');
+    } catch (err) {
+      console.error('❌ Erreur lors de la mise à jour du stock:', err);
+      setError('Impossible de mettre à jour le stock. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePriceUpdate = async () => {
+    if (!selectedProduct || !priceUpdate.newPrice) return;
+    
+    const oldPrice = selectedProduct.price;
+    const newPrice = parseFloat(priceUpdate.newPrice);
+    
+    // Si c'est un produit fictif, mise à jour locale uniquement
+    if ((selectedProduct as any).isMock) {
       setProducts(products.map(p => 
         p.id === selectedProduct.id 
           ? { ...p, price: newPrice }
@@ -156,6 +339,37 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
       
       setShowPriceModal(false);
       setPriceUpdate({ newPrice: '', reason: '' });
+      return;
+    }
+    
+    // Si c'est un produit réel, appeler l'API
+    try {
+      setIsLoading(true);
+      
+      await updateProduct(selectedProduct.id, {
+        price: newPrice
+      });
+      
+      // Mise à jour locale après succès
+      setProducts(products.map(p => 
+        p.id === selectedProduct.id 
+          ? { ...p, price: newPrice }
+          : p
+      ));
+      
+      setSelectedProduct({ ...selectedProduct, price: newPrice });
+      
+      alert(`Prix modifié: ${oldPrice.toFixed(2)}€ → ${newPrice.toFixed(2)}€\nRaison: ${priceUpdate.reason || 'Non spécifiée'}`);
+      
+      setShowPriceModal(false);
+      setPriceUpdate({ newPrice: '', reason: '' });
+      
+      console.log('✅ Prix mis à jour avec succès');
+    } catch (err) {
+      console.error('❌ Erreur lors de la mise à jour du prix:', err);
+      setError('Impossible de mettre à jour le prix. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -171,8 +385,11 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
     setShowEditModal(true);
   };
 
-  const handleEditSave = () => {
-    if (selectedProduct) {
+  const handleEditSave = async () => {
+    if (!selectedProduct) return;
+    
+    // Si c'est un produit fictif, mise à jour locale uniquement
+    if ((selectedProduct as any).isMock) {
       setProducts(products.map(p => 
         p.id === selectedProduct.id 
           ? { 
@@ -194,6 +411,53 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
       });
       
       setShowEditModal(false);
+      return;
+    }
+    
+    // Si c'est un produit réel, appeler l'API
+    try {
+      setIsLoading(true);
+      
+      const updateData = {
+        name: editFormData.title,
+        description: editFormData.description || 'Aucune description',
+        price: parseFloat(editFormData.price),
+        sku: editFormData.sku,
+        category: editFormData.category,
+        stock: parseInt(editFormData.stock) || 0,
+        isActive: true
+      };
+      
+      await updateProduct(selectedProduct.id, updateData);
+      
+      // Mettre à jour localement
+      setProducts(products.map(p => 
+        p.id === selectedProduct.id 
+          ? { 
+              ...p, 
+              title: editFormData.title,
+              price: parseFloat(editFormData.price),
+              sku: editFormData.sku,
+              category: editFormData.category,
+            }
+          : p
+      ));
+      
+      setSelectedProduct({
+        ...selectedProduct,
+        title: editFormData.title,
+        price: parseFloat(editFormData.price),
+        sku: editFormData.sku,
+        category: editFormData.category,
+      });
+      
+      setShowEditModal(false);
+      console.log('✅ Produit mis à jour avec succès');
+    } catch (err) {
+      console.error('❌ Erreur lors de la mise à jour:', err);
+      setError('Impossible de mettre à jour le produit. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -226,8 +490,20 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
                 <p className="text-sm text-gray-500">Complétez les informations du produit</p>
               </div>
             </div>
-            <Button onClick={handleSave} leftIcon={Save}>Enregistrer</Button>
+            <Button onClick={handleSave} leftIcon={Save} disabled={isLoading}>
+              {isLoading ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
           </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-800">Erreur</p>
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
@@ -273,6 +549,41 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
                   </div>
 
                   <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Image du produit
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex-1 cursor-pointer">
+                        <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-blue-500 transition-colors text-center">
+                          <Package className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                          <p className="text-sm text-gray-600">
+                            {imageFile ? imageFile.name : 'Cliquez pour sélectionner une image'}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">PNG, JPG jusqu'à 5MB</p>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden"
+                        />
+                      </label>
+                      {imageFile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageFile(null);
+                            setImagePreview('');
+                          }}
+                          className="text-red-600 hover:text-red-700 text-sm"
+                        >
+                          Supprimer
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                     <textarea
                       className="w-full p-4 border border-gray-300 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all min-h-[120px]"
@@ -289,8 +600,17 @@ export const Products: React.FC<ProductsProps> = ({ autoOpenCreate = false }) =>
               <Card className="border-0 shadow-xl sticky top-24">
                 <CardContent className="p-6">
                   <h3 className="font-bold text-gray-900 mb-4">Aperçu</h3>
-                  <div className="bg-gray-100 aspect-square rounded-xl flex items-center justify-center mb-4">
-                    <Package className="w-16 h-16 text-gray-400" />
+                  <div className="bg-gray-100 aspect-square rounded-xl flex items-center justify-center mb-4 relative overflow-hidden">
+                    {imagePreview ? (
+                      <Image 
+                        src={imagePreview} 
+                        alt="Aperçu" 
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <Package className="w-16 h-16 text-gray-400" />
+                    )}
                   </div>
                   <h4 className="font-bold text-gray-900 mb-2">{formData.title || 'Nom du produit'}</h4>
                   <p className="text-2xl font-bold text-blue-600 mb-4">{formData.price ? `${formData.price} €` : '0.00 €'}</p>

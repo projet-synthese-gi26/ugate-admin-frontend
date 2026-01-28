@@ -15,7 +15,22 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'media-service.pynfi.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ugate.pynfi.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
+  },
+  experimental: {
+    turbo: undefined,
   },
 };
 

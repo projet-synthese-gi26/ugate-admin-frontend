@@ -73,3 +73,32 @@ export interface CreateEventResponse {
   id: string;
   message: string;
 }
+
+/**
+ * Type LocalTime utilisé par l'API pour les heures
+ */
+export interface LocalTime {
+  hour: number;
+  minute: number;
+  second: number;
+  nano: number;
+}
+
+/**
+ * Réponse de l'API pour un événement
+ */
+export interface EventResponseDTO {
+  id: string;
+  creatorId: string;
+  branchId: string;
+  title: string;
+  description: string;
+  location: string;
+  date: string;
+  startTime: LocalTime;
+  endTime: LocalTime;
+  createdAt: string;
+  updatedAt: string;
+  participantCount: number;
+  imageUrls?: string[];
+}

@@ -5,12 +5,12 @@
  * API: https://ugate.pynfi.com
  */
 
-import { EventItem, CreateEventRequest, EventParticipant, CreateEventResponse } from '@/lib/types/events';
+import { EventItem, CreateEventRequest, EventParticipant, CreateEventResponse, EventResponseDTO } from '@/lib/types/events';
 import { apiGet, apiPost, apiDelete } from './api.client';
 import { getAccessToken } from './auth.service';
 
 // URL de base de l'API
-const EVENTS_API_URL = 'https://ugate.pynfi.com';
+const API_BASE_URL = 'https://ugate.pynfi.com';
 
 /**
  * 📋 FONCTION 1 : Récupérer les événements d'une branche
@@ -22,7 +22,26 @@ export async function getEventsByBranch(branchId: string): Promise<EventItem[]> 
   try {
     console.log('📋 Récupération des événements pour la branche:', branchId);
     
-    const events = await apiGet<EventItem[]>(`${EVENTS_API_URL}/events/branch/${branchId}`);
+    // L'API retourne un objet EventResponseDTO qui contient les événements
+    const response = await apiGet<EventResponseDTO[]>(`${API_BASE_URL}/events/branch/${branchId}`);
+    
+    // Transformer la réponse en format attendu par le frontend
+    const events: EventItem[] = response.map((event: EventResponseDTO) => ({
+      id: event.id,
+      creatorId: event.creatorId,
+      branchId: event.branchId,
+      title: event.title,
+      description: event.description,
+      location: event.location,
+      date: event.date,
+      startTime: `${String(event.startTime?.hour || 0).padStart(2, '0')}:${String(event.startTime?.minute || 0).padStart(2, '0')}`,
+      endTime: `${String(event.endTime?.hour || 0).padStart(2, '0')}:${String(event.endTime?.minute || 0).padStart(2, '0')}`,
+      createdAt: event.createdAt,
+      updatedAt: event.updatedAt,
+      participantCount: event.participantCount || 0,
+      status: 'active' as const,
+      images: event.imageUrls || []
+    }));
     
     console.log(`✅ ${events.length} événement(s) récupéré(s)`);
     
@@ -70,51 +89,81 @@ export async function createEvent(eventData: CreateEventRequest): Promise<Create
       throw new Error('L\'heure de fin est obligatoire');
     }
     
-    // Préparer les données pour multipart/form-data
+    // Créer FormData avec des champs séparés (comme attendu par l'API)
     const formData = new FormData();
+    formData.append('creatorId', eventData.creatorId);
+    formData.append('branchId', eventData.branchId);
+    formData.append('title', eventData.title.trim());
+    formData.append('description', eventData.description.trim());
+    formData.append('eventDate', eventData.eventDate);
+    formData.append('location', eventData.location.trim());
+    formData.append('startTime', eventData.startTime);
+    formData.append('endTime', eventData.endTime);
     
-    // Créer l'objet request selon le format attendu par l'API
-    // Ajouter :00 aux heures si elles n'ont pas de secondes
-    const formatTime = (time: string) => {
-      return time.length === 5 ? `${time}:00` : time;
-    };
+    console.log('📦 Données à envoyer:');
+    console.log('  - creatorId:', eventData.creatorId);
+    console.log('  - branchId:', eventData.branchId);
+    console.log('  - title:', eventData.title);
+    console.log('  - description:', eventData.description);
+    console.log('  - eventDate:', eventData.eventDate);
+    console.log('  - location:', eventData.location);
+    console.log('  - startTime:', eventData.startTime);
+    console.log('  - endTime:', eventData.endTime);
     
-    const requestData = {
-      creatorId: eventData.creatorId,
-      branchId: eventData.branchId,
-      title: eventData.title.trim(),
-      description: eventData.description.trim(),
-      eventDate: eventData.eventDate,
-      location: eventData.location.trim(),
-      startTime: formatTime(eventData.startTime),
-      endTime: formatTime(eventData.endTime)
-    };
-    
-    console.log('📦 Request data à envoyer:', JSON.stringify(requestData, null, 2));
-    console.table(requestData);
-    
-    // Essayer d'envoyer en JSON pur d'abord pour tester
-    console.log('🧪 Test: Envoi en JSON pur au lieu de multipart/form-data');
-    
-    const response = await fetch(`${EVENTS_API_URL}/events`, {
+    const response = await fetch(`${API_BASE_URL}/events`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${getAccessToken()}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${getAccessToken()}`
+        // Ne pas définir Content-Type - laisse le navigateur gérer multipart/form-data
       },
-      body: JSON.stringify(requestData)
+      body: formData
     });
     
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`❌ HTTP ${response.status}:`, errorText);
-      console.error('📦 Données envoyées:', requestData);
+      console.error('📦 Données envoyées:', eventData);
       throw new Error(`Échec de la création de l'événement (${response.status}): ${errorText}`);
     }
     
-    const result: CreateEventResponse = await response.json();
+    // Gérer les réponses vides ou non-JSON
+    let result: CreateEventResponse;
+    const contentType = response.headers.get('content-type');
+    const contentLength = response.headers.get('content-length');
     
-    console.log('✅ Événement créé avec succès:', result.id);
+    // Si la réponse est vide ou n'est pas JSON
+    if (contentLength === '0' || !contentType?.includes('application/json')) {
+      console.log('⚠️ Réponse vide ou non-JSON de l\'API, création probablement réussie');
+      // Créer une réponse par défaut
+      result = {
+        id: 'event-' + Date.now(), // ID temporaire
+        message: 'Événement créé avec succès'
+      };
+    } else {
+      // Tenter de parser le JSON
+      const responseText = await response.text();
+      if (responseText.trim()) {
+        try {
+          result = JSON.parse(responseText);
+        } catch (err) {
+          console.warn('⚠️ Impossible de parser la réponse JSON:', responseText);
+          console.warn('Erreur de parsing:', err);
+          // Créer une réponse par défaut si le parsing échoue
+          result = {
+            id: 'event-' + Date.now(),
+            message: 'Événement créé (réponse non standard)'
+          };
+        }
+      } else {
+        // Réponse vide mais avec content-type JSON
+        result = {
+          id: 'event-' + Date.now(),
+          message: 'Événement créé avec succès'
+        };
+      }
+    }
+    
+    console.log('✅ Événement créé avec succès');
     
     return result;
   } catch (error) {
@@ -133,7 +182,7 @@ export async function getEventParticipants(eventId: string): Promise<EventPartic
   try {
     console.log('👥 Récupération des participants pour l\'événement:', eventId);
     
-    const participants = await apiGet<EventParticipant[]>(`${EVENTS_API_URL}/events/${eventId}/participants`);
+    const participants = await apiGet<EventParticipant[]>(`${API_BASE_URL}/events/${eventId}/participants`);
     
     console.log(`✅ ${participants.length} participant(s) récupéré(s)`);
     
@@ -153,7 +202,7 @@ export async function joinEvent(eventId: string): Promise<void> {
   try {
     console.log('✅ Inscription à l\'événement:', eventId);
     
-    await apiPost<void>(`${EVENTS_API_URL}/events/${eventId}/join`);
+    await apiPost<void>(`${API_BASE_URL}/events/${eventId}/join`);
     
     console.log('✅ Inscription réussie');
   } catch (error) {
@@ -171,11 +220,29 @@ export async function leaveEvent(eventId: string): Promise<void> {
   try {
     console.log('❌ Désinscription de l\'événement:', eventId);
     
-    await apiDelete<void>(`${EVENTS_API_URL}/events/${eventId}/leave`);
+    await apiDelete<void>(`${API_BASE_URL}/events/${eventId}/leave`);
     
     console.log('✅ Désinscription réussie');
   } catch (error) {
     console.error('❌ Erreur lors de la désinscription:', error);
+    throw error;
+  }
+}
+
+/**
+ * 🗑️ FONCTION 6 : Supprimer un événement
+ * 
+ * @param eventId - ID de l'événement à supprimer
+ */
+export async function deleteEvent(eventId: string): Promise<void> {
+  try {
+    console.log('🗑️ Suppression de l\'événement:', eventId);
+    
+    await apiDelete<void>(`${API_BASE_URL}/events/${eventId}`);
+    
+    console.log('✅ Événement supprimé avec succès');
+  } catch (error) {
+    console.error('❌ Erreur lors de la suppression:', error);
     throw error;
   }
 }

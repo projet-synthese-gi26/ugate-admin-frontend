@@ -73,7 +73,7 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        service: 'LETS_GO',
+        service: 'SYNDICAT',
         roles: ['ADMIN']
       });
       

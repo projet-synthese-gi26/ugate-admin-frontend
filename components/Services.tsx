@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Input } from './ui/Input';
 import { MOCK_SERVICES } from '@/lib/constants';
 import { Service } from '@/lib/types';
+import { ServiceItem } from '@/lib/types/services';
+import { getAllActiveServices, createService, updateService, deleteService } from '@/lib/services/services.service';
 import Image from 'next/image';
 
 export const Services: React.FC = () => {
@@ -17,6 +19,8 @@ export const Services: React.FC = () => {
   const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -24,18 +28,82 @@ export const Services: React.FC = () => {
     features: ['', '', ''],
   });
 
-  const handleSave = () => {
-    const newService: Service = {
-      id: String(services.length + 1),
-      title: formData.title,
-      description: formData.description,
-      price: formData.price,
-      images: ['https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&h=400&fit=crop'],
-      features: formData.features.filter(f => f.trim() !== ''),
-    };
-    setServices([...services, newService]);
-    setIsCreating(false);
-    setFormData({ title: '', description: '', price: '', features: ['', '', ''] });
+  // Charger les services réels depuis l'API au montage du composant
+  useEffect(() => {
+    loadServices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const loadServices = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const apiServices = await getAllActiveServices();
+      
+      // Combiner les services fictifs avec les services réels de l'API
+      const mockServicesWithFlag = MOCK_SERVICES.map(s => ({
+        ...s,
+        isMock: true
+      }));
+      
+      const combinedServices = [...mockServicesWithFlag, ...apiServices];
+      setServices(combinedServices as Service[]);
+      
+      console.log(`✅ ${apiServices.length} service(s) réel(s) + ${MOCK_SERVICES.length} service(s) fictif(s)`);
+    } catch (err) {
+      console.error('❌ Erreur lors du chargement des services:', err);
+      setError('Impossible de charger les services depuis l\'API. Affichage des services fictifs uniquement.');
+      // Garder les services fictifs en cas d'erreur
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    // Validation des champs obligatoires
+    if (!formData.title || !formData.description || !formData.price) {
+      setError('Veuillez remplir tous les champs obligatoires (Titre, Description, Prix)');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const serviceData = {
+        title: formData.title,
+        description: formData.description,
+        price: parseFloat(formData.price.replace(/[^0-9.]/g, '')), // Extraire le nombre du prix
+        features: formData.features.filter(f => f.trim() !== ''),
+        isActive: true
+      };
+      
+      console.log('📦 Création du service:', serviceData);
+      
+      const createdService = await createService(serviceData);
+      
+      // Ajouter le nouveau service à la liste
+      const newService: Service = {
+        id: createdService.id,
+        title: createdService.title,
+        description: createdService.description,
+        price: `${createdService.price} €`,
+        images: ['https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&h=400&fit=crop'],
+        features: createdService.features,
+      };
+      
+      setServices([...services, newService]);
+      setIsCreating(false);
+      setFormData({ title: '', description: '', price: '', features: ['', '', ''] });
+      
+      console.log('✅ Service créé et ajouté à la liste');
+    } catch (err) {
+      console.error('❌ Erreur lors de la création:', err);
+      setError('Impossible de créer le service. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -61,8 +129,27 @@ export const Services: React.FC = () => {
     setSelectedService(null);
   };
 
-  const handleDelete = (id: string) => {
-    setServices(services.filter(s => s.id !== id));
+  const handleDelete = async (id: string) => {
+    const service = services.find(s => s.id === id);
+    
+    // Si c'est un service fictif, suppression locale uniquement
+    if (service && (service as any).isMock) {
+      setServices(services.filter(s => s.id !== id));
+      return;
+    }
+    
+    // Si c'est un service réel, appeler l'API
+    try {
+      setIsLoading(true);
+      await deleteService(id);
+      setServices(services.filter(s => s.id !== id));
+      console.log('✅ Service supprimé avec succès');
+    } catch (err) {
+      console.error('❌ Erreur lors de la suppression:', err);
+      setError('Impossible de supprimer le service. Veuillez réessayer.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addFeature = () => {
@@ -93,8 +180,19 @@ export const Services: React.FC = () => {
                 <p className="text-sm text-gray-500">Définissez votre offre de service</p>
               </div>
             </div>
-            <Button onClick={handleSave} leftIcon={Save}>Publier le Service</Button>
+            <Button onClick={handleSave} leftIcon={Save} disabled={isLoading}>
+              {isLoading ? 'Enregistrement...' : 'Publier le Service'}
+            </Button>
           </div>
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+              <div>
+                <p className="text-sm font-medium text-red-800">Erreur</p>
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="border-0 shadow-xl">
