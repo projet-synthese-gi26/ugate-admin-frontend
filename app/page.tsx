@@ -1,67 +1,91 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Layout } from '@/components/Layout';
-import { Dashboard } from '@/components/Dashboard';
+import { useAuth } from '@/lib/contexts/AuthContext';
 import { Login } from '@/components/Login';
 import { Register } from '@/components/Register';
-import { useAuth } from '@/lib/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { Dashboard } from '@/components/Dashboard';
+import { Events } from '@/components/Events';
+import { Products } from '@/components/Products';
+import { Services } from '@/components/Services';
+import { Admissions } from '@/components/Admissions';
+import { Settings } from '@/components/Settings';
+import { Layout } from '@/components/Layout';
+import { CreateSyndicate } from '@/components/onboarding/CreateSyndicate';
+import { PendingSyndicate } from '@/components/onboarding/PendingSyndicate';
+import { Loader2 } from 'lucide-react';
+import { Branches } from '@/components/Branches';
+
 
 export default function Home() {
-  const { isAuthenticated, isLoading, user } = useAuth();
-  const router = useRouter();
-  
-  const [authView, setAuthView] = useState<'login' | 'register'>('login');
-  const [currentView, setCurrentView] = useState('dashboard');
+    const { isAuthenticated, isLoading, isSyndicateLoading, user, syndicateStatus } = useAuth();
+    const [authView, setAuthView] = useState<'login' | 'register'>('login');
+    const [currentView, setCurrentView] = useState('dashboard');
 
-  const handleChangeView = (view: string) => {
-    setCurrentView(view);
-  };
+    // --- Gestionnaires d'état ---
+    const handleTriggerAction = (action: string) => {
+        if (action === 'create-event') setCurrentView('events');
+        else if (action === 'create-product') setCurrentView('products');
+        else if (action === 'create-admission') setCurrentView('admissions');
+    };
 
-  const handleTriggerAction = (action: string) => {
-    // Rediriger vers la page appropriée avec l'action
-    if (action === 'create-event') {
-      router.push('/events');
-    } else if (action === 'create-product') {
-      router.push('/products');
-    } else if (action === 'create-admission') {
-      router.push('/admissions');
+    // --- Rendu du contenu principal en fonction de la navigation ---
+    const renderContent = () => {
+        switch (currentView) {
+            case 'dashboard':
+                return <Dashboard onChangeView={setCurrentView} onTriggerAction={handleTriggerAction} />;
+            case 'events':
+                return <Events />;
+            case 'products':
+                return <Products />;
+            case 'services':
+                return <Services />;
+            case 'admissions':
+                return <Admissions />;
+            case 'settings':
+                return <Settings />;
+            case 'branches':
+                return <Branches />;
+            default:
+                return <Dashboard onChangeView={setCurrentView} />;
+        }
+    };
+
+    // 1. Chargement
+    if (isLoading || isSyndicateLoading) {
+        return (
+            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+                <div className="text-center">
+                    <Loader2 className="w-10 h-10 text-[#172554] animate-spin mx-auto mb-4" />
+                    <p className="text-[#64748B] font-medium">Chargement de votre espace...</p>
+                </div>
+            </div>
+        );
     }
-  };
 
-  const handleSwitchToRegister = () => {
-    setAuthView('register');
-  };
+    // 2. Auth
+    if (!isAuthenticated) {
+        return authView === 'login'
+            ? <Login onSwitchToRegister={() => setAuthView('register')} />
+            : <Register onSwitchToLogin={() => setAuthView('login')} />;
+    }
 
-  const handleSwitchToLogin = () => {
-    setAuthView('login');
-  };
+    // 3. Onboarding Syndicat
+    if (!syndicateStatus?.hasSyndicate) return <CreateSyndicate />;
+    if (syndicateStatus.status === 'PENDING') return <PendingSyndicate />;
+    if (syndicateStatus.status === 'REJECTED') return <div>Accès refusé. Contactez le support.</div>;
 
-  // Afficher un loader pendant la vérification de l'authentification
-  if (isLoading) {
+    // 4. App Principale
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#1877F2] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
-        </div>
-      </div>
+        <Layout
+            currentView={currentView}
+            onChangeView={setCurrentView}
+            userEmail={user?.email || ''}
+        >
+            {/* On rend le contenu dynamique ici */}
+            <div className="animate-in fade-in duration-300">
+                {renderContent()}
+            </div>
+        </Layout>
     );
-  }
-
-  // Si non authentifié, afficher le formulaire de login ou register
-  if (!isAuthenticated) {
-    if (authView === 'login') {
-      return <Login onSwitchToRegister={handleSwitchToRegister} />;
-    }
-    return <Register onSwitchToLogin={handleSwitchToLogin} />;
-  }
-
-  // Sinon, afficher le dashboard
-  return (
-    <Layout currentView={currentView} onChangeView={handleChangeView} userEmail={user?.email || ''}>
-      <Dashboard onChangeView={handleChangeView} onTriggerAction={handleTriggerAction} />
-    </Layout>
-  );
 }

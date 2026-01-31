@@ -70,3 +70,11 @@ export interface DecodedToken {
   exp: number;
   iat: number;
 }
+
+
+export interface UserSyndicateStatus {
+  hasSyndicate: boolean;
+  syndicateId?: string;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DEACTIVATED';
+  syndicateName?: string;
+}

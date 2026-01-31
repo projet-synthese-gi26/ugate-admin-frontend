@@ -15,6 +15,13 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      // AJOUTE CE BLOC ICI :
+      {
+        protocol: 'https',
+        hostname: 'media-service.pynfi.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
 };

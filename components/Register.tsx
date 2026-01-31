@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, User, Phone } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, User, Phone, CheckCircle2 } from 'lucide-react';
 import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { AuthLayout } from './auth/AuthLayout';
 
 interface RegisterProps {
   onSwitchToLogin: () => void;
@@ -11,7 +13,7 @@ interface RegisterProps {
 
 export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
   const { register, error: authError, isLoading: authLoading } = useAuth();
-  
+
   const [formData, setFormData] = useState({
     username: '',
     firstName: '',
@@ -22,38 +24,17 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
     confirmPassword: ''
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [localError, setLocalError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const [acceptTerms, setAcceptTerms] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError('');
-    setSuccessMessage('');
-
-    if (!formData.username || !formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.password || !formData.confirmPassword) {
-      setLocalError('Veuillez remplir tous les champs obligatoires');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setLocalError('Format d\'email invalide');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setLocalError('Le mot de passe doit contenir au moins 6 caractères');
-      return;
-    }
 
     if (formData.password !== formData.confirmPassword) {
       setLocalError('Les mots de passe ne correspondent pas');
@@ -76,266 +57,163 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
         service: 'LETS_GO',
         roles: ['ADMIN']
       });
-      
-      // Afficher message de succès
-      setSuccessMessage('Inscription réussie ! Redirection vers la page de connexion...');
-      
-      // Rediriger vers login après 2 secondes
-      setTimeout(() => {
-        onSwitchToLogin();
-      }, 2000);
-      
+      setSuccess(true);
+      setTimeout(onSwitchToLogin, 3000);
     } catch (err) {
-      console.error('Erreur lors de l\'inscription:', err);
+      console.error('Erreur inscription:', err);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 py-12">
-      <div className="w-full max-w-2xl">
-        {/* Logo et titre */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#1877F2] rounded-2xl shadow-lg mb-4">
-            <span className="text-white font-bold text-3xl">U</span>
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Créer un compte</h1>
-          <p className="text-gray-600">Rejoignez UGate Admin dès aujourd&apos;hui</p>
-        </div>
-
-        {/* Formulaire d'inscription */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-200">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Message d'erreur */}
-            {(localError || authError) && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{localError || authError}</span>
-              </div>
-            )}
-
-            {/* Message de succès */}
-            {successMessage && (
-              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-                <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span>{successMessage}</span>
-              </div>
-            )}
-
-            {/* Grille de champs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Username */}
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom d&apos;utilisateur <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="username"
-                    name="username"
-                    type="text"
-                    value={formData.username}
-                    onChange={handleChange}
-                    placeholder="johndoe"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Prénom */}
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Prénom <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="firstName"
-                    name="firstName"
-                    type="text"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    placeholder="Jean"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Nom */}
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Nom <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="lastName"
-                    name="lastName"
-                    type="text"
-                    value={formData.lastName}
-                    onChange={handleChange}
-                    placeholder="Dupont"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Adresse email <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="exemple@email.com"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Téléphone */}
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Téléphone <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="+33 6 12 34 56 78"
-                    className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Mot de passe */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Mot de passe <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="••••••••"
-                    className="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirmer mot de passe */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                  Confirmer le mot de passe <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="••••••••"
-                    className="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1877F2] focus:border-transparent transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-              </div>
+  if (success) {
+    return (
+        <AuthLayout title="Inscription réussie !" subtitle="Bienvenue chez UGate.">
+          <div className="text-center py-10">
+            <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10 text-green-500 animate-bounce" />
             </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Compte créé avec succès</h3>
+            <p className="text-gray-500">Vous allez être redirigé vers la page de connexion...</p>
+          </div>
+        </AuthLayout>
+    );
+  }
 
-            {/* Conditions d'utilisation */}
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <input
+  return (
+      <AuthLayout
+          title="Créer un compte"
+          subtitle="Rejoignez la plateforme de référence pour les syndicats."
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {(localError || authError) && (
+              <div className="flex items-center gap-3 p-4 bg-red-50/50 border border-red-100 rounded-xl text-red-600 text-sm">
+                <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                <span className="font-medium">{localError || authError}</span>
+              </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+                label="Prénom"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleChange}
+                placeholder="Jean"
+                required
+            />
+            <Input
+                label="Nom"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleChange}
+                placeholder="Dupont"
+                required
+            />
+          </div>
+
+          <Input
+              label="Nom d'utilisateur"
+              name="username"
+              icon={User}
+              value={formData.username}
+              onChange={handleChange}
+              placeholder="j.dupont"
+              required
+          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+                label="Email"
+                name="email"
+                type="email"
+                icon={Mail}
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="pro@email.com"
+                required
+            />
+            <Input
+                label="Téléphone"
+                name="phone"
+                type="tel"
+                icon={Phone}
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="+237..."
+                required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative group">
+              <Input
+                  label="Mot de passe"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  icon={Lock}
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••"
+                  required
+              />
+            </div>
+            <div className="relative group">
+              <Input
+                  label="Confirmation"
+                  name="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  icon={Lock}
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  placeholder="••••••"
+                  required
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-xs text-gray-500 hover:text-[#1877F2]"
+            >
+              {showPassword ? "Masquer les mots de passe" : "Afficher les mots de passe"}
+            </button>
+          </div>
+
+          <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200/50">
+            <input
                 type="checkbox"
                 id="terms"
                 checked={acceptTerms}
                 onChange={(e) => setAcceptTerms(e.target.checked)}
-                className="w-4 h-4 mt-0.5 rounded border-gray-300 text-[#1877F2] focus:ring-[#1877F2] focus:ring-offset-0 cursor-pointer"
-              />
-              <label htmlFor="terms" className="text-sm text-gray-600 cursor-pointer">
-                J&apos;accepte les{' '}
-                <a href="#" className="text-[#1877F2] hover:text-[#1465D6] font-medium">
-                  conditions d&apos;utilisation
-                </a>{' '}
-                et la{' '}
-                <a href="#" className="text-[#1877F2] hover:text-[#1465D6] font-medium">
-                  politique de confidentialité
-                </a>
-              </label>
-            </div>
+                className="mt-1 w-4 h-4 rounded border-gray-300 text-[#1877F2] focus:ring-[#1877F2] cursor-pointer"
+            />
+            <label htmlFor="terms" className="text-xs text-gray-600 cursor-pointer leading-relaxed">
+              J&apos;accepte les <a href="#" className="text-[#1877F2] font-semibold hover:underline">conditions d&apos;utilisation</a> et la <a href="#" className="text-[#1877F2] font-semibold hover:underline">politique de confidentialité</a> de UGate.
+            </label>
+          </div>
 
-            {/* Bouton d'inscription */}
-            <Button
+          <Button
               type="submit"
               variant="primary"
               size="lg"
-              className="w-full"
+              className="w-full bg-[#1877F2] hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30"
               isLoading={authLoading}
-            >
-              Créer mon compte
-            </Button>
-          </form>
+          >
+            Créer mon compte
+          </Button>
 
-          {/* Séparateur */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">OU</span>
-            </div>
-          </div>
-
-          {/* Lien vers connexion */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              Vous avez déjà un compte ?{' '}
-              <button
+          <p className="text-center text-sm text-gray-500 pt-2">
+            Déjà inscrit ?{' '}
+            <button
                 type="button"
                 onClick={onSwitchToLogin}
-                className="text-[#1877F2] hover:text-[#1465D6] font-semibold transition-colors"
-              >
-                Se connecter
-              </button>
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>© 2024 UGate Admin. Tous droits réservés.</p>
-        </div>
-      </div>
-    </div>
+                className="font-bold text-[#1877F2] hover:text-blue-700 hover:underline transition-all"
+            >
+              Se connecter
+            </button>
+          </p>
+        </form>
+      </AuthLayout>
   );
 };

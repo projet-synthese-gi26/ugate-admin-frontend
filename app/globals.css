@@ -1,104 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --background: #F8FAFC;
+  /* Changement ici : Bleu Nuit Profond au lieu de Slate 900 */
+  --foreground: #0F172A; /* C'est déjà un bleu très sombre (Slate), mais on va forcer un bleu plus saturé si besoin */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-inter);
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+
+  /* Primary : Bleu Nuit "Royal" */
+  --primary: #172554; /* Blue 950 - Beaucoup plus bleu que noir */
+  --primary-foreground: #FFFFFF;
+
+  /* Brand : Le bleu électrique pour les boutons/accents */
+  --brand: #2563EB;
+
+  --muted: #64748B;
+  --border: #E2E8F0;
+
+  --radius: 1rem;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  /* Fond subtil bleuté */
+  background-image:
+          radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 50%),
+          radial-gradient(at 100% 0%, rgba(30, 58, 138, 0.05) 0px, transparent 50%);
+  background-attachment: fixed;
 }
 
-* {
-  box-sizing: border-box;
+/* ... Le reste des utilitaires (glass-panel, premium-card) reste identique ... */
+.premium-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Ombre plus douce */
+  transition: all 0.3s ease;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slide-in-from-bottom-2 {
-  from {
-    transform: translateY(0.5rem);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-@keyframes slide-in-from-bottom-4 {
-  from {
-    transform: translateY(1rem);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-@keyframes zoom-in-95 {
-  from {
-    transform: scale(0.95);
-  }
-  to {
-    transform: scale(1);
-  }
-}
-
-.animate-in {
-  animation-fill-mode: both;
-}
-
-.fade-in {
-  animation-name: fade-in;
-}
-
-.slide-in-from-bottom-2 {
-  animation-name: slide-in-from-bottom-2;
-}
-
-.slide-in-from-bottom-4 {
-  animation-name: slide-in-from-bottom-4;
-}
-
-.zoom-in-95 {
-  animation-name: zoom-in-95;
-}
-
-.duration-300 {
-  animation-duration: 300ms;
-}
-
-.duration-500 {
-  animation-duration: 500ms;
+.premium-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -10px rgba(37, 99, 235, 0.15); /* Ombre bleutée au survol */
+  border-color: rgba(37, 99, 235, 0.2);
 }
