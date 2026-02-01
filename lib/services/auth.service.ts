@@ -8,7 +8,20 @@
  * - Rafraîchissement automatique des tokens
  */
 
+const API_URL = 'https://ugate.pynfi.com';
+
+export interface UpdateUserProfileDTO {
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  nationality?: string;
+  gender?: string;
+  language?: string;
+  birthDate?: string;
+}
+
 import { LoginCredentials, RegisterCredentials, LoginResponse, RefreshTokenResponse, UserInfo, DecodedToken } from '@/lib/types/auth';
+import {apiPost} from "@/lib/services/api.client";
 
 // URL de base de l'API d'authentification
 const AUTH_API_URL = 'https://auth-service.pynfi.com/api/auth';
@@ -299,4 +312,49 @@ export function decodeToken(token: string): DecodedToken | null {
 export function hasRole(requiredRole: string): boolean {
   const user = getUserInfo();
   return user?.roles?.includes(requiredRole) ?? false;
+}
+
+
+
+
+
+export async function getUserById(userId: string): Promise<UserInfo | null> {
+  const token = getAccessToken();
+  if (!token) return null;
+
+  try {
+    const response = await fetch(`https://auth-service.pynfi.com/api/users/${userId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.warn(`⚠️ Impossible de récupérer l'user ${userId} (Status: ${response.status})`);
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`❌ Erreur fetch user ${userId}:`, error);
+    return null;
+  }
+}
+
+
+export async function updateUserProfile(data: UpdateUserProfileDTO, imageFile?: File): Promise<any> {
+  const formData = new FormData();
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value) formData.append(key, value);
+  });
+
+  if (imageFile) {
+    formData.append('image', imageFile);
+  }
+
+  // Utilisation de apiPost qui gère le Token automatiquement
+  return apiPost(`${API_URL}/syndicates/user`, formData);
 }

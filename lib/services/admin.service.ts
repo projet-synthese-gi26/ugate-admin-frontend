@@ -7,6 +7,7 @@
 
 import {apiGet, apiPatch, apiPost} from './api.client';
 
+
 const API_URL = 'https://ugate.pynfi.com';
 
 // --- Interfaces (Types) ---
@@ -251,4 +252,102 @@ export async function getSyndicateBranches(syndicateId: string): Promise<Syndica
  */
 export async function getSyndicateProducts(syndicateId: string): Promise<ProductResponse[]> {
     return apiGet<ProductResponse[]>(`${API_URL}/products/syndicates/${syndicateId}`);
+}
+
+
+
+
+
+export interface SyndicateDocuments {
+    logoUrl?: string;
+    charteUrl?: string;
+    statusUrl?: string;
+    membersListUrl?: string;
+    commitmentCertificateUrl?: string;
+}
+
+export interface OrganizationInfo {
+    legalForm: string;
+    socialNetwork?: string;
+    keywords?: string;
+    email: string;
+    shortName: string;
+    longName: string;
+}
+
+export interface SyndicateDetailsResponse {
+    id: string;
+    name: string;
+    description: string;
+    domain: string;
+    type: string;
+    isApproved: boolean;
+    isActive: boolean;
+    documents: SyndicateDocuments;
+    organization: OrganizationInfo;
+    creator: { id: string; fullName: string; email: string };
+    stats: { totalMembers: number; totalBranches: number };
+    createdAt: string;
+    updatedAt: string;
+}
+
+// --- Nouvelles Fonctions API ---
+
+/**
+ * GET /syndicates/{id}/details
+ * Récupérer les détails complets du syndicat (incluant docs et stats)
+ */
+export async function getSyndicateDetails(syndicateId: string): Promise<SyndicateDetailsResponse> {
+    return apiGet<SyndicateDetailsResponse>(`${API_URL}/syndicates/${syndicateId}/details`);
+}
+
+/**
+ * PATCH /syndicates/{id}
+ * Mise à jour du syndicat (Multipart pour les fichiers)
+ */
+export async function updateSyndicate(
+    syndicateId: string,
+    data: {
+        name?: string;
+        description?: string;
+        domain?: string;
+    },
+    files?: {
+        logo?: File;
+        charte?: File;
+        statusDoc?: File;
+    }
+): Promise<void> {
+    const formData = new FormData();
+
+    // Champs texte
+    if (data.name) formData.append('name', data.name);
+    if (data.description) formData.append('description', data.description);
+    if (data.domain) formData.append('domain', data.domain);
+
+    // Fichiers
+    if (files?.logo) formData.append('logo', files.logo);
+    if (files?.charte) formData.append('charte', files.charte);
+    if (files?.statusDoc) formData.append('statusDoc', files.statusDoc);
+
+    // Note: apiPatch gère automatiquement l'absence de Content-Type JSON pour FormData
+    // mais nous devons utiliser fetch directement si apiPatch force le JSON,
+    // vérifions votre api.client.ts -> Il gère bien le FormData !
+    return apiPatch(`${API_URL}/syndicates/${syndicateId}`, formData);
+}
+
+
+export async function updateUserProfile(data: UpdateUserProfileDTO, imageFile?: File): Promise<any> {
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+        if (value) formData.append(key, value);
+    });
+
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
+
+    // Utilisation de apiPost qui gère le Token automatiquement
+    return apiPost(`${API_URL}/syndicates/user`, formData);
 }

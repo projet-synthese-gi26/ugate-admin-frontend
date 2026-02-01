@@ -1,518 +1,521 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  User, Mail, Lock, Bell, Globe, Shield, Database, 
-  Palette, Monitor, Smartphone, Save, Eye, EyeOff,
-  Building2, Users, Calendar, Package, FileText,
-  CheckCircle2, AlertCircle, Info, ChevronRight
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  User, Building2, Save, Camera, Loader2, Upload,
+  FileText, Eye, CheckCircle2, AlertCircle, X,
+  Calendar, Users, Share2, Globe, Mail, Phone, MapPin
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { Input, TextArea } from './ui/Input';
 import { Badge } from './ui/Badge';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { updateUserProfile } from '@/lib/services/auth.service';
+import { getSyndicateDetails, updateSyndicate, SyndicateDetailsResponse } from '@/lib/services/admin.service';
+import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
-export const Settings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('profile');
-  const [showPassword, setShowPassword] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+// --- COMPOSANT : VISIONNEUSE PDF MODALE ---
+const PDFViewerModal = ({ url, title, onClose }: { url: string, title: string, onClose: () => void }) => {
+  return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0F172A]/80 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="bg-white w-full h-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">{title}</h3>
+                <p className="text-xs text-slate-500">Mode lecture</p>
+              </div>
+            </div>
+            <button
+                onClick={onClose}
+                className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+            >
+              <X className="w-6 h-6 text-slate-500" />
+            </button>
+          </div>
 
-  const [profileData, setProfileData] = useState({
-    firstName: 'Admin',
-    lastName: 'Principal',
-    email: 'admin@ugate.cm',
-    phone: '+237 6 70 00 00 00',
-    role: 'Super Administrateur',
-    branch: 'Siège National - Yaoundé',
-  });
+          {/* Content - Iframe pour le PDF */}
+          <div className="flex-1 bg-slate-200 relative">
+            <iframe
+                src={`${url}#toolbar=0`}
+                className="w-full h-full"
+                title={title}
+            />
+          </div>
 
-  const [securityData, setSecurityData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-    twoFactorEnabled: true,
-  });
+          {/* Footer */}
+          <div className="p-4 border-t border-slate-100 bg-white flex justify-end gap-3">
+            <Button variant="outline" onClick={onClose}>Fermer</Button>
+            <Button onClick={() => window.open(url, '_blank')}>Ouvrir dans un nouvel onglet</Button>
+          </div>
+        </div>
+      </div>
+  );
+};
 
-  const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    smsNotifications: false,
-    newEvents: true,
-    newMembers: true,
-    productUpdates: true,
-    systemAlerts: true,
-  });
+// --- COMPOSANT : CARTE DOCUMENT ---
+const DocumentCard = ({
+                        title,
+                        description,
+                        fileUrl,
+                        onUpload,
+                        onView,
+                        accept = ".pdf",
+                        isLoading = false
+                      }: {
+  title: string,
+  description: string,
+  fileUrl?: string,
+  onUpload: (file: File) => void,
+  onView: (url: string, title: string) => void,
+  accept?: string,
+  isLoading?: boolean
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
-  const [appearanceSettings, setAppearanceSettings] = useState({
-    theme: 'light',
-    language: 'fr',
-    dateFormat: 'DD/MM/YYYY',
-    timeFormat: '24h',
-  });
-
-  const handleSave = () => {
-    setSaveStatus('saving');
-    setTimeout(() => {
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    }, 1000);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      setFileName(e.target.files[0].name);
+      onUpload(e.target.files[0]);
+    }
   };
 
+  return (
+      <div className="group border border-slate-200 rounded-xl p-5 hover:border-[#1877F2] hover:shadow-md transition-all bg-white relative overflow-hidden">
+        {/* Indicateur de statut */}
+        <div className={`absolute top-0 right-0 w-16 h-16 -mr-8 -mt-8 rotate-45 ${fileUrl ? 'bg-emerald-500' : 'bg-slate-200'} transition-colors`} />
+
+        <div className="flex items-start gap-4 relative z-10">
+          <div className={`p-3 rounded-xl flex-shrink-0 shadow-sm ${fileUrl || fileName ? 'bg-gradient-to-br from-red-50 to-red-100 text-red-600' : 'bg-slate-100 text-slate-400'}`}>
+            {isLoading ? <Loader2 className="w-8 h-8 animate-spin" /> : <FileText className="w-8 h-8" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-bold text-slate-900 text-lg">{title}</h4>
+            <p className="text-sm text-slate-500 mt-1 mb-4 line-clamp-2">
+              {fileName ? <span className="text-emerald-600 font-medium">Fichier prêt : {fileName}</span> : description}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {fileUrl && !fileName && (
+                  <Button
+                      type="button"
+                      onClick={() => onView(fileUrl, title)}
+                      className="bg-[#172554] text-white hover:bg-blue-900 h-9 text-xs"
+                      leftIcon={Eye}
+                  >
+                    Lire le document
+                  </Button>
+              )}
+
+              <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-9 text-xs border-slate-200"
+                  onClick={() => inputRef.current?.click()}
+                  disabled={isLoading}
+                  leftIcon={Upload}
+              >
+                {fileUrl ? 'Mettre à jour' : 'Importer'}
+              </Button>
+            </div>
+          </div>
+        </div>
+        <input type="file" ref={inputRef} className="hidden" accept={accept} onChange={handleChange} />
+      </div>
+  );
+};
+
+export const Settings: React.FC = () => {
+  const { user, checkAuthentication, syndicateStatus } = useAuth();
+  const [activeTab, setActiveTab] = useState<'profile' | 'organization'>('profile');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  // --- PROFIL STATES ---
+  const [profileForm, setProfileForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    nationality: '',
+  });
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [profilePreview, setProfilePreview] = useState<string | null>(null);
+
+  // --- ORGANISATION STATES ---
+  const [syndicateData, setSyndicateData] = useState<SyndicateDetailsResponse | null>(null);
+  const [orgForm, setOrgForm] = useState({ name: '', description: '', domain: '' });
+  const [orgFiles, setOrgFiles] = useState<{ charte?: File; statusDoc?: File }>({});
+  const [isOrgLoading, setIsOrgLoading] = useState(false);
+
+  // --- PDF VIEWER STATE ---
+  const [viewerState, setViewerState] = useState<{ isOpen: boolean, url: string, title: string }>({
+    isOpen: false, url: '', title: ''
+  });
+
+  // --- INITIALISATION ---
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        nationality: '',
+      });
+      setProfilePreview(user.photoUri || null);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const fetchOrg = async () => {
+      if (activeTab === 'organization' && syndicateStatus?.syndicateId) {
+        setIsOrgLoading(true);
+        try {
+          const data = await getSyndicateDetails(syndicateStatus.syndicateId);
+          setSyndicateData(data);
+          setOrgForm({
+            name: data.name,
+            description: data.description,
+            domain: data.domain
+          });
+        } catch (e) {
+          console.error("Erreur chargement syndicat", e);
+        } finally {
+          setIsOrgLoading(false);
+        }
+      }
+    };
+    fetchOrg();
+  }, [activeTab, syndicateStatus?.syndicateId]);
+
+  // --- HANDLERS ---
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setProfileImage(file);
+      setProfilePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSaveStatus('saving');
+    try {
+      await updateUserProfile({
+        firstName: profileForm.firstName,
+        lastName: profileForm.lastName,
+        phoneNumber: profileForm.phone,
+        nationality: profileForm.nationality
+      }, profileImage || undefined);
+
+      await checkAuthentication();
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (error) {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  };
+
+  const handleSaveOrg = async () => {
+    if (!syndicateStatus?.syndicateId) return;
+    setSaveStatus('saving');
+    try {
+      await updateSyndicate(syndicateStatus.syndicateId, orgForm, orgFiles);
+      // Recharger les données pour avoir les nouvelles URLs
+      const data = await getSyndicateDetails(syndicateStatus.syndicateId);
+      setSyndicateData(data);
+      // Reset des fichiers locaux
+      setOrgFiles({});
+
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch (e) {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
+  };
+
+  const openPdfViewer = (url: string, title: string) => {
+    setViewerState({ isOpen: true, url, title });
+  };
+
+  // --- NAVIGATION SIDEBAR ---
   const tabs = [
-    { id: 'profile', label: 'Profil', icon: User },
-    { id: 'security', label: 'Sécurité', icon: Shield },
-    { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'appearance', label: 'Apparence', icon: Palette },
-    { id: 'organization', label: 'Organisation', icon: Building2 },
-    { id: 'data', label: 'Données', icon: Database },
+    { id: 'profile', label: 'Mon Profil', icon: User },
+    { id: 'organization', label: 'Mon Syndicat', icon: Building2 },
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Paramètres</h1>
-        <p className="text-gray-500 mt-1">Gérez vos préférences et configurations</p>
-      </div>
+      <div className="space-y-6 animate-in fade-in duration-500">
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar Navigation */}
-        <div className="lg:col-span-1">
-          <Card className="border-0 shadow-lg sticky top-24">
-            <CardContent className="p-4">
-              <nav className="space-y-1">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                        isActive
-                          ? 'bg-[#1877F2] text-white shadow-md'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="font-medium">{tab.label}</span>
-                      {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                    </button>
-                  );
-                })}
-              </nav>
-            </CardContent>
-          </Card>
+        {/* Header Global */}
+        <div className="border-b border-slate-200 pb-6">
+          <h1 className="text-3xl font-bold text-[#172554]">Paramètres</h1>
+          <p className="text-slate-500 mt-1">Gérez votre compte personnel et les informations légales de votre syndicat.</p>
         </div>
 
-        {/* Main Content */}
-        <div className="lg:col-span-3 space-y-6">
-          {/* Profile Tab */}
-          {activeTab === 'profile' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-[#1877F2]" />
-                    Informations Personnelles
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex items-center gap-6 mb-6">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#1877F2] to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
-                      {profileData.firstName[0]}{profileData.lastName[0]}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-gray-900">
-                        {profileData.firstName} {profileData.lastName}
-                      </h3>
-                      <p className="text-gray-500">{profileData.email}</p>
-                      <Badge variant="info" className="mt-2">{profileData.role}</Badge>
-                    </div>
-                  </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Prénom"
-                      value={profileData.firstName}
-                      onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
-                    />
-                    <Input
-                      label="Nom"
-                      value={profileData.lastName}
-                      onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
-                    />
-                    <Input
-                      label="Email"
-                      type="email"
-                      value={profileData.email}
-                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                    />
-                    <Input
-                      label="Téléphone"
-                      value={profileData.phone}
-                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                    />
-                  </div>
-
-                  <Input
-                    label="Agence"
-                    value={profileData.branch}
-                    disabled
-                  />
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end">
-                <Button 
-                  variant="primary" 
-                  leftIcon={Save}
-                  onClick={handleSave}
-                  disabled={saveStatus === 'saving'}
-                >
-                  {saveStatus === 'saving' ? 'Enregistrement...' : saveStatus === 'saved' ? 'Enregistré !' : 'Enregistrer'}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Security Tab */}
-          {activeTab === 'security' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <Lock className="w-5 h-5 text-[#1877F2]" />
-                    Changer le Mot de Passe
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div className="relative">
-                    <Input
-                      label="Mot de passe actuel"
-                      type={showPassword ? 'text' : 'password'}
-                      value={securityData.currentPassword}
-                      onChange={(e) => setSecurityData({ ...securityData, currentPassword: e.target.value })}
-                    />
+          {/* Sidebar Navigation (Col 3/12) */}
+          <div className="lg:col-span-3">
+            <nav className="space-y-2 sticky top-6">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
                     <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium group ${
+                            isActive
+                                ? 'bg-[#172554] text-white shadow-lg shadow-blue-900/20'
+                                : 'text-slate-600 hover:bg-white hover:shadow-sm hover:text-[#172554] bg-slate-50/50'
+                        }`}
                     >
-                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      <Icon className={`w-5 h-5 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-[#172554]'}`} />
+                      {tab.label}
+                      {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
                     </button>
-                  </div>
-                  <Input
-                    label="Nouveau mot de passe"
-                    type="password"
-                    value={securityData.newPassword}
-                    onChange={(e) => setSecurityData({ ...securityData, newPassword: e.target.value })}
-                  />
-                  <Input
-                    label="Confirmer le mot de passe"
-                    type="password"
-                    value={securityData.confirmPassword}
-                    onChange={(e) => setSecurityData({ ...securityData, confirmPassword: e.target.value })}
-                  />
-                </CardContent>
-              </Card>
+                );
+              })}
+            </nav>
+          </div>
 
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-[#1877F2]" />
-                    Authentification à Deux Facteurs
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold text-gray-900">Activer 2FA</h4>
-                      <p className="text-sm text-gray-500">Ajoutez une couche de sécurité supplémentaire</p>
+          {/* Main Content (Col 9/12) */}
+          <div className="lg:col-span-9 space-y-6">
+
+            {/* --- ONGLET : PROFIL --- */}
+            {activeTab === 'profile' && (
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
+
+                  {/* Carte Identité Visuelle */}
+                  <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-[#172554] to-[#2563EB] opacity-10" />
+
+                    <div className="relative flex flex-col md:flex-row items-center md:items-end gap-6 -mt-4">
+                      <div className="relative group">
+                        <div className="w-32 h-32 rounded-full border-4 border-white bg-white shadow-xl overflow-hidden flex items-center justify-center text-4xl font-bold text-[#172554] uppercase relative z-10">
+                          {profilePreview ? (
+                              <Image src={profilePreview} alt="Profile" fill className="object-cover" />
+                          ) : (
+                              `${profileForm.firstName?.[0] || ''}${profileForm.lastName?.[0] || ''}`
+                          )}
+                        </div>
+                        <label className="absolute bottom-1 right-1 z-20 p-2 bg-[#172554] text-white rounded-full cursor-pointer hover:scale-110 transition-transform shadow-lg border-2 border-white">
+                          <Camera className="w-4 h-4" />
+                          <input type="file" className="hidden" accept="image/*" onChange={handleAvatarChange} />
+                        </label>
+                      </div>
+
+                      <div className="flex-1 text-center md:text-left mb-2">
+                        <h2 className="text-2xl font-bold text-slate-900">{profileForm.firstName} {profileForm.lastName}</h2>
+                        <p className="text-slate-500">{user?.roles?.[0] || 'Membre Utilisateur'}</p>
+                      </div>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={securityData.twoFactorEnabled}
-                        onChange={(e) => setSecurityData({ ...securityData, twoFactorEnabled: e.target.checked })}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1877F2]"></div>
-                    </label>
                   </div>
-                </CardContent>
-              </Card>
 
-              <div className="flex justify-end">
-                <Button variant="primary" leftIcon={Save} onClick={handleSave}>
-                  Enregistrer
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Notifications Tab */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="w-5 h-5 text-[#1877F2]" />
-                    Canaux de Notification
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  {[
-                    { key: 'emailNotifications', label: 'Notifications par Email', icon: Mail },
-                    { key: 'pushNotifications', label: 'Notifications Push', icon: Monitor },
-                    { key: 'smsNotifications', label: 'Notifications SMS', icon: Smartphone },
-                  ].map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Icon className="w-5 h-5 text-gray-600" />
-                          <span className="font-medium text-gray-900">{item.label}</span>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={notificationSettings[item.key as keyof typeof notificationSettings] as boolean}
-                            onChange={(e) => setNotificationSettings({ ...notificationSettings, [item.key]: e.target.checked })}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1877F2]"></div>
-                        </label>
+                  {/* Formulaire Profil */}
+                  <Card className="border-0 shadow-lg">
+                    <CardHeader>
+                      <CardTitle>Informations Personnelles</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Input
+                            label="Prénom"
+                            value={profileForm.firstName}
+                            onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
+                        />
+                        <Input
+                            label="Nom"
+                            value={profileForm.lastName}
+                            onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
+                        />
+                        <Input
+                            label="Email professionnel"
+                            type="email"
+                            icon={Mail}
+                            value={profileForm.email}
+                            disabled
+                            className="bg-slate-50 text-slate-500 border-slate-200"
+                        />
+                        <Input
+                            label="Numéro de téléphone"
+                            icon={Phone}
+                            value={profileForm.phone}
+                            onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                        />
+                        <Input
+                            label="Nationalité"
+                            icon={Globe}
+                            value={profileForm.nationality}
+                            onChange={(e) => setProfileForm({ ...profileForm, nationality: e.target.value })}
+                            placeholder="Ex: Camerounaise"
+                        />
                       </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
 
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-[#1877F2]" />
-                    Types de Notifications
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  {[
-                    { key: 'newEvents', label: 'Nouveaux événements', icon: Calendar },
-                    { key: 'newMembers', label: 'Nouveaux membres', icon: Users },
-                    { key: 'productUpdates', label: 'Mises à jour produits', icon: Package },
-                    { key: 'systemAlerts', label: 'Alertes système', icon: AlertCircle },
-                  ].map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Icon className="w-5 h-5 text-gray-600" />
-                          <span className="font-medium text-gray-900">{item.label}</span>
-                        </div>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={notificationSettings[item.key as keyof typeof notificationSettings] as boolean}
-                            onChange={(e) => setNotificationSettings({ ...notificationSettings, [item.key]: e.target.checked })}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1877F2]"></div>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end">
-                <Button variant="primary" leftIcon={Save} onClick={handleSave}>
-                  Enregistrer
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Appearance Tab */}
-          {activeTab === 'appearance' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <Palette className="w-5 h-5 text-[#1877F2]" />
-                    Thème et Affichage
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Thème</label>
-                    <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { value: 'light', label: 'Clair', icon: '☀️' },
-                        { value: 'dark', label: 'Sombre', icon: '🌙' },
-                      ].map((theme) => (
-                        <button
-                          key={theme.value}
-                          onClick={() => setAppearanceSettings({ ...appearanceSettings, theme: theme.value })}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            appearanceSettings.theme === theme.value
-                              ? 'border-[#1877F2] bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                      <div className="flex justify-end pt-4 border-t border-slate-100">
+                        <Button
+                            variant="primary"
+                            leftIcon={Save}
+                            onClick={handleSaveProfile}
+                            isLoading={saveStatus === 'saving'}
+                            className="bg-[#172554] w-full sm:w-auto min-w-[200px]"
                         >
-                          <div className="text-3xl mb-2">{theme.icon}</div>
-                          <div className="font-medium">{theme.label}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Langue</label>
-                    <select
-                      value={appearanceSettings.language}
-                      onChange={(e) => setAppearanceSettings({ ...appearanceSettings, language: e.target.value })}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:border-[#1877F2] focus:ring-4 focus:ring-blue-500/10 outline-none"
-                    >
-                      <option value="fr">Français</option>
-                      <option value="en">English</option>
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Format de date</label>
-                      <select
-                        value={appearanceSettings.dateFormat}
-                        onChange={(e) => setAppearanceSettings({ ...appearanceSettings, dateFormat: e.target.value })}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:border-[#1877F2] focus:ring-4 focus:ring-blue-500/10 outline-none"
-                      >
-                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Format d&apos;heure</label>
-                      <select
-                        value={appearanceSettings.timeFormat}
-                        onChange={(e) => setAppearanceSettings({ ...appearanceSettings, timeFormat: e.target.value })}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:border-[#1877F2] focus:ring-4 focus:ring-blue-500/10 outline-none"
-                      >
-                        <option value="24h">24 heures</option>
-                        <option value="12h">12 heures (AM/PM)</option>
-                      </select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex justify-end">
-                <Button variant="primary" leftIcon={Save} onClick={handleSave}>
-                  Enregistrer
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Organization Tab */}
-          {activeTab === 'organization' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-[#1877F2]" />
-                    Informations de l&apos;Organisation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start gap-3">
-                      <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-semibold text-blue-900">Paramètres réservés</h4>
-                        <p className="text-sm text-blue-700 mt-1">
-                          Ces paramètres sont réservés aux super-administrateurs du siège national.
-                        </p>
+                          {saveStatus === 'saved' ? 'Modifications enregistrées' : saveStatus === 'error' ? 'Erreur de sauvegarde' : 'Enregistrer les modifications'}
+                        </Button>
                       </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+            )}
 
-                  <div className="space-y-3 opacity-50 pointer-events-none">
-                    <Input label="Nom de l'organisation" value="Union Générale des Agents Techniques et Économiques" disabled />
-                    <Input label="Sigle" value="UGATE" disabled />
-                    <Input label="Siège social" value="Yaoundé, Cameroun" disabled />
-                    <Input label="Email officiel" value="contact@ugate.cm" disabled />
-                    <Input label="Téléphone" value="+237 6 70 00 00 00" disabled />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+            {/* --- ONGLET : ORGANISATION --- */}
+            {activeTab === 'organization' && (
+                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
 
-          {/* Data Tab */}
-          {activeTab === 'data' && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <Database className="w-5 h-5 text-[#1877F2]" />
-                    Gestion des Données
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6 space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-gray-900">Exporter mes données</h4>
-                        <p className="text-sm text-gray-500">Téléchargez toutes vos données personnelles</p>
+                  {isOrgLoading ? (
+                      <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-slate-100">
+                        <Loader2 className="w-10 h-10 text-[#172554] animate-spin mb-4" />
+                        <p className="text-slate-500 font-medium">Chargement des données du syndicat...</p>
                       </div>
-                      <Button variant="outline" size="sm" leftIcon={FileText}>
-                        Exporter
-                      </Button>
-                    </div>
-                  </div>
+                  ) : (
+                      <>
+                        {/* Banner Info Read-Only */}
+                        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="col-span-1 flex flex-col items-center justify-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            {syndicateData?.documents?.logoUrl ? (
+                                <div className="w-24 h-24 rounded-full overflow-hidden shadow-md mb-3">
+                                  <Image src={syndicateData.documents.logoUrl} alt="Logo" width={96} height={96} className="w-full h-full object-cover" />
+                                </div>
+                            ) : (
+                                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center border-2 border-dashed border-slate-300 mb-3">
+                                  <Building2 className="w-8 h-8 text-slate-300" />
+                                </div>
+                            )}
+                            <Badge className={syndicateData?.isApproved ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}>
+                              {syndicateData?.isApproved ? 'Approuvé' : 'En attente'}
+                            </Badge>
+                          </div>
 
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-red-900">Supprimer mon compte</h4>
-                        <p className="text-sm text-red-700">Cette action est irréversible</p>
-                      </div>
-                      <Button variant="outline" size="sm" className="text-red-600 border-red-300 hover:bg-red-100">
-                        Supprimer
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                          <div className="col-span-2 space-y-4">
+                            <h3 className="text-lg font-bold text-[#172554] mb-2 border-b border-slate-100 pb-2">Informations Générales</h3>
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <p className="text-slate-400 uppercase text-[10px] font-bold tracking-wider">Créé le</p>
+                                <p className="font-medium text-slate-700">{syndicateData?.createdAt ? new Date(syndicateData.createdAt).toLocaleDateString() : '-'}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-400 uppercase text-[10px] font-bold tracking-wider">Créateur</p>
+                                <p className="font-medium text-slate-700">{syndicateData?.creator?.fullName || '-'}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-400 uppercase text-[10px] font-bold tracking-wider">Membres</p>
+                                <p className="font-medium text-slate-700 flex items-center gap-1"><Users className="w-3 h-3 text-[#1877F2]" /> {syndicateData?.stats?.totalMembers || 0}</p>
+                              </div>
+                              <div>
+                                <p className="text-slate-400 uppercase text-[10px] font-bold tracking-wider">Antennes</p>
+                                <p className="font-medium text-slate-700 flex items-center gap-1"><Share2 className="w-3 h-3 text-[#1877F2]" /> {syndicateData?.stats?.totalBranches || 0}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
 
-              <Card className="border-0 shadow-lg">
-                <CardHeader className="border-b border-gray-100">
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-[#1877F2]" />
-                    Confidentialité
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-gray-900">Profil public</h4>
-                        <p className="text-sm text-gray-500">Permettre aux autres membres de voir votre profil</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" defaultChecked className="sr-only peer" />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1877F2]"></div>
-                      </label>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                        {/* Formulaire Edition */}
+                        <Card className="border-0 shadow-lg">
+                          <CardHeader className="bg-slate-50/50 border-b border-slate-100">
+                            <CardTitle className="text-[#172554] flex items-center gap-2">
+                              <Building2 className="w-5 h-5" /> Détails Modifiables
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-6 space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <Input
+                                  label="Nom Officiel"
+                                  value={orgForm.name}
+                                  onChange={e => setOrgForm({...orgForm, name: e.target.value})}
+                                  placeholder="Ex: UGATE Centre"
+                              />
+                              <Input
+                                  label="Domaine d'activité"
+                                  value={orgForm.domain}
+                                  onChange={e => setOrgForm({...orgForm, domain: e.target.value})}
+                                  placeholder="Ex: Transport Routier"
+                              />
+                            </div>
+
+                            <TextArea
+                                label="Description & Objet Social"
+                                value={orgForm.description}
+                                onChange={e => setOrgForm({...orgForm, description: e.target.value})}
+                                className="min-h-[120px]"
+                                placeholder="Décrivez la mission et les objectifs de votre syndicat..."
+                            />
+
+                            {/* Section Documents PDF */}
+                            <div className="pt-6 border-t border-slate-100">
+                              <h4 className="text-sm font-bold text-[#172554] mb-4 uppercase tracking-wider flex items-center gap-2">
+                                <FileText className="w-4 h-4" /> Documents Légaux (PDF)
+                              </h4>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <DocumentCard
+                                    title="Statuts Officiels"
+                                    description="Le document juridique fondateur."
+                                    fileUrl={syndicateData?.documents?.statusUrl}
+                                    onUpload={(file) => setOrgFiles({...orgFiles, statusDoc: file})}
+                                    onView={openPdfViewer}
+                                />
+                                <DocumentCard
+                                    title="Charte / Règlement"
+                                    description="Règlement intérieur à destination des membres."
+                                    fileUrl={syndicateData?.documents?.charteUrl}
+                                    onUpload={(file) => setOrgFiles({...orgFiles, charte: file})}
+                                    onView={openPdfViewer}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end pt-6">
+                              <Button
+                                  variant="primary"
+                                  leftIcon={Save}
+                                  onClick={handleSaveOrg}
+                                  isLoading={saveStatus === 'saving'}
+                                  className="bg-[#172554] min-w-[200px]"
+                              >
+                                {saveStatus === 'saved' ? 'Mise à jour réussie' : saveStatus === 'error' ? 'Erreur lors de la mise à jour' : 'Enregistrer les modifications'}
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </>
+                  )}
+                </motion.div>
+            )}
+
+          </div>
         </div>
+
+        {/* MODALE PDF VIEWER */}
+        <AnimatePresence>
+          {viewerState.isOpen && (
+              <PDFViewerModal
+                  url={viewerState.url}
+                  title={viewerState.title}
+                  onClose={() => setViewerState({ ...viewerState, isOpen: false })}
+              />
+          )}
+        </AnimatePresence>
+
       </div>
-    </div>
   );
 };

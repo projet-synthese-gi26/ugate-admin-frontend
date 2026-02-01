@@ -1,9 +1,22 @@
+/**
+ * Service de Gestion des Produits
+ * Synchronisé avec la spécification OpenAPI :
+ * - Création via Multipart/Form-data (Image + Données)
+ * - Mise à jour via PATCH JSON
+ * - Gestion de stock via PATCH Integer
+ */
+
 import { apiGet, apiPost, apiPatch, apiDelete } from './api.client';
-import { ProductResponse } from './admin.service'; // On réutilise le type défini précédemment
+import { ProductResponse } from './admin.service';
 
 const API_URL = 'https://ugate.pynfi.com';
 
-export interface CreateProductDTO {
+// --- Types ---
+
+// On étend l'interface de réponse si besoin, sinon on utilise celle de base
+export interface Product extends ProductResponse {}
+
+export interface CreateProductRequest {
     syndicatId: string;
     name: string;
     description: string;
@@ -14,72 +27,87 @@ export interface CreateProductDTO {
     isActive: boolean;
 }
 
+export interface UpdateProductRequest {
+    // Certains champs sont optionnels pour le PATCH
+    syndicatId?: string;
+    name?: string;
+    description?: string;
+    price?: number;
+    sku?: string;
+    category?: string;
+    stock?: number;
+    isActive?: boolean;
+}
+
+// --- Fonctions API ---
+
+/**
+ * Récupérer les produits d'un syndicat
+ * GET /products/syndicates/{syndicatId}
+ */
+export async function getProductsBySyndicate(syndicateId: string): Promise<Product[]> {
+    return apiGet<Product[]>(`${API_URL}/products/syndicates/${syndicateId}`);
+}
+
+/**
+ * Récupérer les détails d'un produit
+ * GET /products/{id}
+ */
+export async function getProductDetails(id: string): Promise<Product> {
+    return apiGet<Product>(`${API_URL}/products/${id}`);
+}
+
 /**
  * Créer un produit avec image
- * Note: L'API semble attendre un DTO en query/part et l'image en body.
- * Nous utilisons FormData pour tout envoyer proprement.
+ * POST /products (Multipart)
+ * L'API attend les champs sous forme de "parts" dans le FormData
  */
-export async function createProduct(data: CreateProductDTO, imageFile: File): Promise<ProductResponse> {
+export async function createProduct(data: CreateProductRequest, imageFile: File | null): Promise<Product> {
     const formData = new FormData();
 
-    // Construction de l'objet DTO pour l'envoyer comme demandé par l'API (souvent sous forme de blob ou string JSON)
-    // Si l'API attend "dto" en query param, il faudra adapter l'URL.
-    // Ici, on assume une approche standard Multipart où on envoie les champs.
+    // Ajout des champs textuels
+    formData.append('syndicatId', data.syndicatId);
+    formData.append('name', data.name);
+    formData.append('description', data.description);
+    formData.append('price', data.price.toString());
+    formData.append('sku', data.sku);
+    formData.append('category', data.category);
+    formData.append('stock', data.stock.toString());
+    formData.append('isActive', String(data.isActive));
 
-    // Approche robuste : On envoie les champs individuellement ET on prépare le terrain si l'API change
-    formData.append('image', imageFile);
-
-    // Astuce : Certains backends Java attendent un champ 'dto' contenant le JSON
-    const dto = JSON.stringify(data);
-
-    // On construit l'URL avec le paramètre dto si c'est ce que Swagger demande spécifiquement
-    // (parameters: [{name: "dto", in: "query"...}])
-    const url = `${API_URL}/products?dto=${encodeURIComponent(dto)}`;
-
-    // Note: On n'utilise pas apiPost ici car on doit gérer le FormData spécifiquement sans le header JSON par défaut
-    const token = localStorage.getItem('ugate_access_token');
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            // Pas de Content-Type, le navigateur le mettra avec le boundary
-        },
-        body: formData
-    });
-
-    if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Erreur création produit: ${error}`);
+    // Ajout de l'image
+    // Note: L'API spécifie "image" comme un tableau de string (binary),
+    // mais pour un upload simple, on envoie souvent le fichier unique ici.
+    if (imageFile) {
+        formData.append('image', imageFile);
     }
 
-    return await response.json();
+    // apiPost gère automatiquement l'absence de Content-Type JSON pour le FormData
+    return apiPost<Product>(`${API_URL}/products`, formData);
 }
 
 /**
- * Mettre à jour un produit
+ * Mettre à jour les détails d'un produit
+ * PATCH /products/{id} (JSON)
  */
-export async function updateProduct(id: string, data: Partial<CreateProductDTO>): Promise<ProductResponse> {
-    return apiPatch(`${API_URL}/products/${id}`, data);
+export async function updateProduct(id: string, data: UpdateProductRequest): Promise<Product> {
+    return apiPatch<Product>(`${API_URL}/products/${id}`, data);
 }
 
 /**
- * Mettre à jour le stock
+ * Mettre à jour le stock uniquement
+ * PATCH /products/{id}/stock (Body: Integer)
  */
-export async function updateProductStock(id: string, quantity: number): Promise<ProductResponse> {
-    return apiPatch(`${API_URL}/products/${id}/stock`, quantity); // Envoie l'entier directement
+export async function updateProductStock(id: string, quantity: number): Promise<Product> {
+    // L'API attend un entier directement dans le corps, pas un objet JSON complexe
+    // apiPatch gère la conversion JSON
+    return apiPatch<Product>(`${API_URL}/products/${id}/stock`, quantity);
 }
 
 /**
  * Supprimer un produit
+ * DELETE /products/{id}
  */
 export async function deleteProduct(id: string): Promise<void> {
     return apiDelete(`${API_URL}/products/${id}`);
-}
-
-/**
- * Récupérer les produits d'un syndicat
- */
-export async function getProductsBySyndicate(syndicateId: string): Promise<ProductResponse[]> {
-    return apiGet<ProductResponse[]>(`${API_URL}/products/syndicates/${syndicateId}`);
 }

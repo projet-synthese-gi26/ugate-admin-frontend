@@ -5,6 +5,20 @@
  * Basé sur l'API: https://auth-service.pynfi.com/swagger-ui/index.html
  */
 
+export interface UserInfo {
+  id: string;
+  username: string;
+  email: string;
+  phone: string | null;
+  firstName: string;
+  lastName: string;
+  service: string; // ex: "SYNDICAT"
+  photoId: string | null;
+  photoUri: string | null; // L'URL de la photo
+  roles: string[];
+  permissions: string[];
+}
+
 /**
  * Réponse de l'API lors de la connexion
  */
@@ -14,20 +28,8 @@ export interface LoginResponse {
   user: UserInfo;
 }
 
-/**
- * Informations sur l'utilisateur connecté
- */
-export interface UserInfo {
-  id: string;
-  username: string;
-  email: string;
-  phone: string;
-  firstName: string;
-  lastName: string;
-  service: string;
-  roles: string[];
-  permissions: string[];
-}
+
+
 
 /**
  * Identifiants de connexion
