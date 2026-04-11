@@ -1,178 +1,123 @@
-/**
- * Contexte d'Authentification & Statut Syndicat
- *
- * Ce fichier gère :
- * 1. L'état d'authentification utilisateur (JWT)
- * 2. L'état du syndicat de l'utilisateur (Créé ? En attente ? Validé ?)
- */
-
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { LoginCredentials, RegisterCredentials, UserInfo } from '@/lib/services/auth.service';
 import {
-  login as apiLogin,
-  register as apiRegister,
-  logout as apiLogout,
+  login as loginService,
+  register as registerService,
+  logout as logoutService,
   getUserInfo,
-  isAuthenticated as checkAuth,
-  refreshAccessToken
+  isTokenExpired,
+  getAccessToken,
 } from '@/lib/services/auth.service';
 import { apiGet } from '@/lib/services/api.client';
-import { LoginCredentials, RegisterCredentials, UserInfo } from '@/lib/types/auth';
 
-// --- Types ---
+type SyndicateApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
-/**
- * Statut du syndicat de l'utilisateur courant.
- * Crucial pour diriger l'utilisateur vers le bon flux (Onboarding vs Dashboard).
- */
-export interface UserSyndicateStatus {
+interface SyndicateStatus {
   hasSyndicate: boolean;
   syndicateId?: string;
-  // Mappe les booléens isApproved/isActive vers un état lisible
-  status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'DEACTIVATED';
   syndicateName?: string;
+  status?: SyndicateApprovalStatus;
 }
 
-/**
- * Interface de la réponse API pour un Syndicat (basé sur Swagger)
- */
-interface SyndicateApiResponse {
-  id: string;
-  name: string;
-  isApproved: boolean;
-  isActive: boolean;
-  // autres champs ignorés pour le contexte auth
-}
-
-/**
- * Interface du Contexte
- */
-interface AuthContextType {
-  // Auth de base
+interface AuthContextValue {
+  user: UserInfo | null;
+  error: string;
   isAuthenticated: boolean;
   isLoading: boolean;
-  user: UserInfo | null;
-  error: string | null;
+  isSyndicateLoading: boolean;
+  syndicateStatus: SyndicateStatus | null;
 
-  // Actions Auth
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
-  checkAuthentication: () => void;
 
-  // Gestion Syndicat
-  syndicateStatus: UserSyndicateStatus | null;
+  checkAuthentication: () => Promise<void>;
   refreshSyndicateStatus: () => Promise<void>;
-  isSyndicateLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// --- Provider ---
+interface MineSyndicateResponse {
+  id: string;
+  name: string;
+  status: SyndicateApprovalStatus;
+}
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // États Auth
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [error, setError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [isSyndicateLoading, setIsSyndicateLoading] = useState(true);
+  const [syndicateStatus, setSyndicateStatus] = useState<SyndicateStatus | null>(null);
 
-  // États Syndicat
-  const [syndicateStatus, setSyndicateStatus] = useState<UserSyndicateStatus | null>(null);
-  const [isSyndicateLoading, setIsSyndicateLoading] = useState(false);
-
-  /**
-   * Vérifie et met à jour le statut du syndicat de l'utilisateur
-   * Appelle l'endpoint /syndicates/mine
-   */
   const refreshSyndicateStatus = useCallback(async () => {
-    // Ne rien faire si pas connecté
-    if (!checkAuth()) {
+    const token = getAccessToken();
+    if (!token) {
       setSyndicateStatus(null);
+      setIsSyndicateLoading(false);
       return;
     }
 
     setIsSyndicateLoading(true);
     try {
-      // Appel à l'API UGate
-      const syndicates = await apiGet<SyndicateApiResponse[]>('https://ugate.pynfi.com/syndicates/mine');
-
-      if (syndicates && syndicates.length > 0) {
-        const mySyndicate = syndicates[0]; // On prend le premier (hypothèse: 1 user = 1 syndicat)
-
-        // Logique de détermination du statut
-        let computedStatus: UserSyndicateStatus['status'] = 'PENDING';
-
-        if (mySyndicate.isApproved && mySyndicate.isActive) {
-          computedStatus = 'APPROVED';
-        } else if (mySyndicate.isApproved && !mySyndicate.isActive) {
-          computedStatus = 'DEACTIVATED';
-        } else if (!mySyndicate.isApproved) {
-          computedStatus = 'PENDING';
-        }
-
-        setSyndicateStatus({
-          hasSyndicate: true,
-          syndicateId: mySyndicate.id,
-          status: computedStatus,
-          syndicateName: mySyndicate.name
-        });
-
-        console.log('🏢 Statut Syndicat:', computedStatus);
-      } else {
-        // Pas de syndicat trouvé
-        setSyndicateStatus({ hasSyndicate: false });
-        console.log('🏢 Aucun syndicat associé à ce compte');
-      }
-    } catch (err) {
-      console.error("❌ Erreur récupération syndicat:", err);
-      // En cas d'erreur API (ex: 404 ou 500), on assume pas de syndicat pour ne pas bloquer
+      const syndicate = await apiGet<MineSyndicateResponse>('/syndicates/mine');
+      setSyndicateStatus({
+        hasSyndicate: true,
+        syndicateId: syndicate.id,
+        syndicateName: syndicate.name,
+        status: syndicate.status,
+      });
+    } catch {
       setSyndicateStatus({ hasSyndicate: false });
     } finally {
       setIsSyndicateLoading(false);
     }
   }, []);
 
-  /**
-   * Vérifier l'authentification au chargement
-   */
-  const checkAuthentication = useCallback(() => {
-    const authenticated = checkAuth();
-    setIsAuthenticated(authenticated);
+  const checkAuthentication = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const currentUser = getUserInfo();
+      const token = getAccessToken();
 
-    if (authenticated) {
-      const userInfo = getUserInfo();
-      setUser(userInfo);
-      // Si authentifié, on lance la vérification du syndicat
-      refreshSyndicateStatus();
-    } else {
+      const ok = !!token && !isTokenExpired() && !!currentUser;
+
+      setIsAuthenticated(ok);
+      setUser(ok ? currentUser : null);
+
+      if (ok) await refreshSyndicateStatus();
+      else {
+        setSyndicateStatus(null);
+        setIsSyndicateLoading(false);
+      }
+    } catch (e) {
+      console.error(e);
+      setIsAuthenticated(false);
       setUser(null);
       setSyndicateStatus(null);
+      setIsSyndicateLoading(false);
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   }, [refreshSyndicateStatus]);
 
-  /**
-   * Connexion
-   */
-  const login = async (credentials: LoginCredentials): Promise<void> => {
+  useEffect(() => {
+    void checkAuthentication();
+  }, [checkAuthentication]);
+
+  const login = useCallback(async (credentials: LoginCredentials) => {
+    setError('');
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = await apiLogin(credentials);
-
+      const res = await loginService(credentials);
+      setUser(res.user);
       setIsAuthenticated(true);
-      setUser(response.user);
-
-      // Après login succès, vérifier immédiatement le statut syndicat
       await refreshSyndicateStatus();
-
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur de connexion';
-      setError(errorMessage);
+    } catch (err: any) {
+      setError(err?.message ?? 'Erreur login');
       setIsAuthenticated(false);
       setUser(null);
       setSyndicateStatus(null);
@@ -180,89 +125,67 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [refreshSyndicateStatus]);
 
-  /**
-   * Inscription
-   */
-  const register = async (credentials: RegisterCredentials): Promise<void> => {
+  const register = useCallback(async (credentials: RegisterCredentials) => {
+    setError('');
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      setError(null);
-      await apiRegister(credentials);
-      // Note: Pas de login automatique, l'utilisateur doit se connecter
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erreur d\'inscription';
-      setError(errorMessage);
+      const res = await registerService(credentials);
+      setUser(res.user);
+      setIsAuthenticated(true);
+      await refreshSyndicateStatus();
+    } catch (err: any) {
+      setError(err?.message ?? 'Erreur register');
+      setIsAuthenticated(false);
+      setUser(null);
+      setSyndicateStatus(null);
       throw err;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [refreshSyndicateStatus]);
 
-  /**
-   * Déconnexion
-   */
-  const logout = () => {
-    apiLogout();
-    setIsAuthenticated(false);
+  const logout = useCallback(() => {
+    logoutService();
     setUser(null);
+    setError('');
+    setIsAuthenticated(false);
     setSyndicateStatus(null);
-    setError(null);
-  };
+    setIsSyndicateLoading(false);
+  }, []);
 
-  /**
-   * Effet initial
-   */
-  useEffect(() => {
-    checkAuthentication();
-  }, [checkAuthentication]);
-
-  /**
-   * Rafraîchissement automatique du token (toutes les 10 min)
-   */
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const refreshInterval = setInterval(async () => {
-      try {
-        await refreshAccessToken();
-      } catch (error) {
-        console.error('❌ Échec du rafraîchissement auto:', error);
-        logout();
-      }
-    }, 10 * 60 * 1000);
-
-    return () => clearInterval(refreshInterval);
-  }, [isAuthenticated]);
-
-  const value: AuthContextType = {
-    isAuthenticated,
-    isLoading,
+  const value = useMemo<AuthContextValue>(() => ({
     user,
     error,
+    isAuthenticated,
+    isLoading,
+    isSyndicateLoading,
+    syndicateStatus,
     login,
     register,
     logout,
     checkAuthentication,
-    syndicateStatus,
     refreshSyndicateStatus,
-    isSyndicateLoading
-  };
+  }), [
+    user,
+    error,
+    isAuthenticated,
+    isLoading,
+    isSyndicateLoading,
+    syndicateStatus,
+    login,
+    register,
+    logout,
+    checkAuthentication,
+    refreshSyndicateStatus,
+  ]);
 
-  return (
-      <AuthContext.Provider value={value}>
-        {children}
-      </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// --- Hook ---
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth doit être utilisé à l\'intérieur d\'un AuthProvider');
-  }
-  return context;
-};
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth doit être utilisé dans AuthProvider');
+  return ctx;
+}
