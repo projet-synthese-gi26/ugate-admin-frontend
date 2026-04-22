@@ -1,24 +1,40 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { LoginCredentials, RegisterCredentials, UserInfo } from '@/lib/services/auth.service';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+
+import type {
+  LoginCredentials,
+  RegisterCredentials,
+  UserInfo,
+} from '@/lib/services/auth.service';
+
 import {
   login as loginService,
   register as registerService,
   logout as logoutService,
   getUserInfo,
-  isTokenExpired,
   getAccessToken,
+  isTokenExpired,
 } from '@/lib/services/auth.service';
+
 import { apiGet } from '@/lib/services/api.client';
 
-type SyndicateApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+/* ------------------------------------------------------------------ */
+/* Types                                                              */
+/* ------------------------------------------------------------------ */
 
 interface SyndicateStatus {
-  hasSyndicate: boolean;
+  exists: boolean;
   syndicateId?: string;
-  syndicateName?: string;
-  status?: SyndicateApprovalStatus;
+  name?: string;
+  isApproved?: boolean;
+  isActive?: boolean;
 }
 
 interface AuthContextValue {
@@ -39,22 +55,29 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-interface MineSyndicateResponse {
-  id: string;
-  name: string;
-  status: SyndicateApprovalStatus;
-}
+/* ------------------------------------------------------------------ */
+/* Provider                                                           */
+/* ------------------------------------------------------------------ */
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+                                                                        children,
+                                                                      }) => {
   const [user, setUser] = useState<UserInfo | null>(null);
   const [error, setError] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
   const [isSyndicateLoading, setIsSyndicateLoading] = useState(true);
-  const [syndicateStatus, setSyndicateStatus] = useState<SyndicateStatus | null>(null);
+  const [syndicateStatus, setSyndicateStatus] =
+      useState<SyndicateStatus | null>(null);
+
+  /* -------------------------------------------------------------- */
+  /* Syndicate status (SOURCE OF TRUTH)                              */
+  /* -------------------------------------------------------------- */
 
   const refreshSyndicateStatus = useCallback(async () => {
     const token = getAccessToken();
+
     if (!token) {
       setSyndicateStatus(null);
       setIsSyndicateLoading(false);
@@ -62,130 +85,111 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setIsSyndicateLoading(true);
+
     try {
-      const syndicate = await apiGet<MineSyndicateResponse>('/syndicates/mine');
+      const response = await apiGet<any[]>('/syndicates/mine');
+
+      // ✅ Aucun syndicat
+      if (!Array.isArray(response) || response.length === 0) {
+        setSyndicateStatus({ exists: false });
+        return;
+      }
+
+      // ✅ Le backend garantit UN syndicat max par utilisateur
+      const syndicate = response[0];
+
       setSyndicateStatus({
-        hasSyndicate: true,
+        exists: true,
         syndicateId: syndicate.id,
-        syndicateName: syndicate.name,
-        status: syndicate.status,
+        name: syndicate.name,
+        isApproved: syndicate.isApproved === true,
+        isActive: syndicate.isActive === true,
       });
     } catch {
-      setSyndicateStatus({ hasSyndicate: false });
+      setSyndicateStatus({ exists: false });
     } finally {
       setIsSyndicateLoading(false);
     }
   }, []);
+
+  /* -------------------------------------------------------------- */
+  /* Authentication                                                 */
+  /* -------------------------------------------------------------- */
 
   const checkAuthentication = useCallback(async () => {
     setIsLoading(true);
+
     try {
-      const currentUser = getUserInfo();
       const token = getAccessToken();
 
-      const ok = !!token && !isTokenExpired() && !!currentUser;
-
-      setIsAuthenticated(ok);
-      setUser(ok ? currentUser : null);
-
-      if (ok) await refreshSyndicateStatus();
-      else {
-        setSyndicateStatus(null);
-        setIsSyndicateLoading(false);
+      if (!token || isTokenExpired()) {
+        logoutService();
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
       }
-    } catch (e) {
-      console.error(e);
-      setIsAuthenticated(false);
-      setUser(null);
-      setSyndicateStatus(null);
-      setIsSyndicateLoading(false);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [refreshSyndicateStatus]);
 
-  useEffect(() => {
-    void checkAuthentication();
-  }, [checkAuthentication]);
-
-  const login = useCallback(async (credentials: LoginCredentials) => {
-    setError('');
-    setIsLoading(true);
-    try {
-      const res = await loginService(credentials);
-      setUser(res.user);
+      const userInfo = await getUserInfo();
+      setUser(userInfo);
       setIsAuthenticated(true);
+
       await refreshSyndicateStatus();
-    } catch (err: any) {
-      setError(err?.message ?? 'Erreur login');
+    } catch {
+      logoutService();
       setIsAuthenticated(false);
       setUser(null);
-      setSyndicateStatus(null);
-      throw err;
     } finally {
       setIsLoading(false);
     }
   }, [refreshSyndicateStatus]);
 
-  const register = useCallback(async (credentials: RegisterCredentials) => {
+  const login = async (credentials: LoginCredentials) => {
     setError('');
-    setIsLoading(true);
-    try {
-      const res = await registerService(credentials);
-      setUser(res.user);
-      setIsAuthenticated(true);
-      await refreshSyndicateStatus();
-    } catch (err: any) {
-      setError(err?.message ?? 'Erreur register');
-      setIsAuthenticated(false);
-      setUser(null);
-      setSyndicateStatus(null);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [refreshSyndicateStatus]);
+    await loginService(credentials);
+    await checkAuthentication();
+  };
 
-  const logout = useCallback(() => {
+  const register = async (credentials: RegisterCredentials) => {
+    setError('');
+    await registerService(credentials);
+  };
+
+  const logout = () => {
     logoutService();
     setUser(null);
-    setError('');
     setIsAuthenticated(false);
     setSyndicateStatus(null);
-    setIsSyndicateLoading(false);
-  }, []);
+  };
 
-  const value = useMemo<AuthContextValue>(() => ({
-    user,
-    error,
-    isAuthenticated,
-    isLoading,
-    isSyndicateLoading,
-    syndicateStatus,
-    login,
-    register,
-    logout,
-    checkAuthentication,
-    refreshSyndicateStatus,
-  }), [
-    user,
-    error,
-    isAuthenticated,
-    isLoading,
-    isSyndicateLoading,
-    syndicateStatus,
-    login,
-    register,
-    logout,
-    checkAuthentication,
-    refreshSyndicateStatus,
-  ]);
+  useEffect(() => {
+    checkAuthentication();
+  }, [checkAuthentication]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+      <AuthContext.Provider
+          value={{
+            user,
+            error,
+            isAuthenticated,
+            isLoading,
+            isSyndicateLoading,
+            syndicateStatus,
+            login,
+            register,
+            logout,
+            checkAuthentication,
+            refreshSyndicateStatus,
+          }}
+      >
+        {children}
+      </AuthContext.Provider>
+  );
 };
 
-export function useAuth(): AuthContextValue {
+export const useAuth = (): AuthContextValue => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth doit être utilisé dans AuthProvider');
+  if (!ctx) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
   return ctx;
-}
+};

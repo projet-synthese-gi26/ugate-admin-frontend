@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com', port: '', pathname: '/**' },
+      { protocol: 'https', hostname: 'traefikdev.yowyob.com', port: '', pathname: '/**' },
       { protocol: 'https', hostname: 'picsum.photos', port: '', pathname: '/**' },
       { protocol: 'https', hostname: 'media-service.pynfi.com', port: '', pathname: '/**' },
     ],

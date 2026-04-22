@@ -1,39 +1,83 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Loader2 } from 'lucide-react';
+
 import { useAuth } from '@/lib/contexts/AuthContext';
+
 import { Login } from '@/components/Login';
 import { Register } from '@/components/Register';
+import { Layout } from '@/components/Layout';
+
 import { Dashboard } from '@/components/Dashboard';
 import { Events } from '@/components/Events';
 import { Products } from '@/components/Products';
 import { Services } from '@/components/Services';
 import { Admissions } from '@/components/Admissions';
 import { Settings } from '@/components/Settings';
-import { Layout } from '@/components/Layout';
-import { CreateSyndicate } from '@/components/onboarding/CreateSyndicate';
-import { PendingSyndicate } from '@/components/onboarding/PendingSyndicate';
-import { Loader2 } from 'lucide-react';
 import { Branches } from '@/components/Branches';
 
+import { CreateSyndicate } from '@/components/onboarding/CreateSyndicate';
+import { PendingSyndicate } from '@/components/onboarding/PendingSyndicate';
 
 export default function Home() {
-    const { isAuthenticated, isLoading, isSyndicateLoading, user, syndicateStatus } = useAuth();
+    const {
+        isAuthenticated,
+        isLoading,
+        isSyndicateLoading,
+        user,
+        syndicateStatus,
+    } = useAuth();
+
     const [authView, setAuthView] = useState<'login' | 'register'>('login');
     const [currentView, setCurrentView] = useState('dashboard');
 
-    // --- Gestionnaires d'état ---
-    const handleTriggerAction = (action: string) => {
-        if (action === 'create-event') setCurrentView('events');
-        else if (action === 'create-product') setCurrentView('products');
-        else if (action === 'create-admission') setCurrentView('admissions');
-    };
+    /* -------------------------------------------------------------- */
+    /* Loading                                                        */
+    /* -------------------------------------------------------------- */
 
-    // --- Rendu du contenu principal en fonction de la navigation ---
+    if (isLoading || isSyndicateLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+                <Loader2 className="w-10 h-10 animate-spin text-[#172554]" />
+            </div>
+        );
+    }
+
+    /* -------------------------------------------------------------- */
+    /* Auth                                                          */
+    /* -------------------------------------------------------------- */
+
+    if (!isAuthenticated) {
+        return authView === 'login' ? (
+            <Login onSwitchToRegister={() => setAuthView('register')} />
+        ) : (
+            <Register onSwitchToLogin={() => setAuthView('login')} />
+        );
+    }
+
+    /* -------------------------------------------------------------- */
+    /* ✅ SYNDICATE GATING (BACKEND‑ALIGNED)                           */
+    /* -------------------------------------------------------------- */
+
+    // ❌ Aucun syndicat → création
+    if (!syndicateStatus?.exists) {
+        return <CreateSyndicate />;
+    }
+
+    // ❌ Syndicat créé mais NON approuvé
+    if (syndicateStatus.isApproved !== true) {
+        return <PendingSyndicate />;
+    }
+
+    /* -------------------------------------------------------------- */
+    /* ✅ APP PRINCIPALE (APPROUVÉ UNIQUEMENT)                         */
+    /* -------------------------------------------------------------- */
+
     const renderContent = () => {
         switch (currentView) {
             case 'dashboard':
-                return <Dashboard onChangeView={setCurrentView} onTriggerAction={handleTriggerAction} />;
+                return <Dashboard />;
             case 'events':
                 return <Events />;
             case 'products':
@@ -47,45 +91,17 @@ export default function Home() {
             case 'branches':
                 return <Branches />;
             default:
-                return <Dashboard onChangeView={setCurrentView} />;
+                return <Dashboard />;
         }
     };
 
-    // 1. Chargement
-    if (isLoading || isSyndicateLoading) {
-        return (
-            <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
-                <div className="text-center">
-                    <Loader2 className="w-10 h-10 text-[#172554] animate-spin mx-auto mb-4" />
-                    <p className="text-[#64748B] font-medium">Chargement de votre espace...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // 2. Auth
-    if (!isAuthenticated) {
-        return authView === 'login'
-            ? <Login onSwitchToRegister={() => setAuthView('register')} />
-            : <Register onSwitchToLogin={() => setAuthView('login')} />;
-    }
-
-    // 3. Onboarding Syndicat
-    if (!syndicateStatus?.hasSyndicate) return <CreateSyndicate />;
-    if (syndicateStatus.status === 'PENDING') return <PendingSyndicate />;
-    if (syndicateStatus.status === 'REJECTED') return <div>Accès refusé. Contactez le support.</div>;
-
-    // 4. App Principale
     return (
         <Layout
             currentView={currentView}
             onChangeView={setCurrentView}
-            userEmail={user?.email || ''}
+            userEmail={user?.email ?? ''}
         >
-            {/* On rend le contenu dynamique ici */}
-            <div className="animate-in fade-in duration-300">
-                {renderContent()}
-            </div>
+            {renderContent()}
         </Layout>
     );
 }
