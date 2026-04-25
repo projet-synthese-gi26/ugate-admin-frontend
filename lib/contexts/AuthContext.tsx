@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       useState<SyndicateStatus | null>(null);
 
   /* -------------------------------------------------------------- */
-  /* Syndicate status (SOURCE OF TRUTH)                              */
+  /* Syndicate status (SOURCE OF TRUTH)                             */
   /* -------------------------------------------------------------- */
 
   const refreshSyndicateStatus = useCallback(async () => {
@@ -89,13 +89,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await apiGet<any[]>('/syndicates/mine');
 
-      // ✅ Aucun syndicat
+      // Aucun syndicat
       if (!Array.isArray(response) || response.length === 0) {
         setSyndicateStatus({ exists: false });
         return;
       }
 
-      // ✅ Le backend garantit UN syndicat max par utilisateur
+      // Le backend garantit un seul syndicat max par utilisateur
       const syndicate = response[0];
 
       setSyndicateStatus({
@@ -105,7 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isApproved: syndicate.isApproved === true,
         isActive: syndicate.isActive === true,
       });
-    } catch {
+    } catch (e) {
+      console.error('Erreur refreshSyndicateStatus:', e);
       setSyndicateStatus({ exists: false });
     } finally {
       setIsSyndicateLoading(false);
@@ -126,6 +127,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         logoutService();
         setIsAuthenticated(false);
         setUser(null);
+
+        // ✅ IMPORTANT : sinon le loader peut rester bloqué à vie
+        setSyndicateStatus(null);
+        setIsSyndicateLoading(false);
+
         return;
       }
 
@@ -134,10 +140,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setIsAuthenticated(true);
 
       await refreshSyndicateStatus();
-    } catch {
+    } catch (e) {
+      console.error('Erreur checkAuthentication:', e);
+
       logoutService();
       setIsAuthenticated(false);
       setUser(null);
+
+      // ✅ IMPORTANT : même en cas d’erreur, il faut débloquer le loader syndicat
+      setSyndicateStatus(null);
+      setIsSyndicateLoading(false);
     } finally {
       setIsLoading(false);
     }
@@ -145,13 +157,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = async (credentials: LoginCredentials) => {
     setError('');
-    await loginService(credentials);
-    await checkAuthentication();
+
+    try {
+      await loginService(credentials);
+      await checkAuthentication();
+    } catch (e: any) {
+      console.error('Erreur login:', e);
+      setError(
+          e?.message || 'Une erreur est survenue pendant la connexion.'
+      );
+      throw e;
+    }
   };
 
   const register = async (credentials: RegisterCredentials) => {
     setError('');
-    await registerService(credentials);
+
+    try {
+      await registerService(credentials);
+    } catch (e: any) {
+      console.error('Erreur register:', e);
+      setError(
+          e?.message || "Une erreur est survenue pendant l'inscription."
+      );
+      throw e;
+    }
   };
 
   const logout = () => {
@@ -159,6 +189,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(null);
     setIsAuthenticated(false);
     setSyndicateStatus(null);
+
+    // ✅ on remet aussi les loaders dans un état cohérent
+    setIsLoading(false);
+    setIsSyndicateLoading(false);
   };
 
   useEffect(() => {
