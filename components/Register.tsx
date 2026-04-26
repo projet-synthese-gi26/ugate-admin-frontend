@@ -30,6 +30,8 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Efface l'erreur dès que l'utilisateur commence à corriger ses champs
+    if (localError) setLocalError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,20 +56,22 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        service: 'LETS_GO',
+        service: 'SYNDICAT', // ✅ Modifié ici pour correspondre à ton enum Swagger
         roles: ['ADMIN']
       });
       setSuccess(true);
       setTimeout(onSwitchToLogin, 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erreur inscription:', err);
+      // ✅ Affiche le vrai message d'erreur du backend dans l'interface (ex: Email déjà pris)
+      setLocalError(err.message || "Une erreur est survenue lors de la création du compte.");
     }
   };
 
   if (success) {
     return (
         <AuthLayout title="Inscription réussie !" subtitle="Bienvenue chez UGate.">
-          <div className="text-center py-10">
+          <div className="text-center py-10 animate-in fade-in zoom-in duration-300">
             <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle2 className="w-10 h-10 text-green-500 animate-bounce" />
             </div>
@@ -85,7 +89,7 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
       >
         <form onSubmit={handleSubmit} className="space-y-5">
           {(localError || authError) && (
-              <div className="flex items-center gap-3 p-4 bg-red-50/50 border border-red-100 rounded-xl text-red-600 text-sm">
+              <div className="flex items-center gap-3 p-4 bg-red-50/50 border border-red-100 rounded-xl text-red-600 text-sm animate-in fade-in slide-in-from-top-2">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <span className="font-medium">{localError || authError}</span>
               </div>
@@ -174,13 +178,13 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
             <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="text-xs text-gray-500 hover:text-[#1877F2]"
+                className="text-xs text-gray-500 hover:text-[#1877F2] font-medium transition-colors"
             >
               {showPassword ? "Masquer les mots de passe" : "Afficher les mots de passe"}
             </button>
           </div>
 
-          <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200/50">
+          <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200/50 hover:bg-gray-100 transition-colors">
             <input
                 type="checkbox"
                 id="terms"
@@ -188,7 +192,7 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
                 onChange={(e) => setAcceptTerms(e.target.checked)}
                 className="mt-1 w-4 h-4 rounded border-gray-300 text-[#1877F2] focus:ring-[#1877F2] cursor-pointer"
             />
-            <label htmlFor="terms" className="text-xs text-gray-600 cursor-pointer leading-relaxed">
+            <label htmlFor="terms" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
               J&apos;accepte les <a href="#" className="text-[#1877F2] font-semibold hover:underline">conditions d&apos;utilisation</a> et la <a href="#" className="text-[#1877F2] font-semibold hover:underline">politique de confidentialité</a> de UGate.
             </label>
           </div>
@@ -197,7 +201,7 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
               type="submit"
               variant="primary"
               size="lg"
-              className="w-full bg-[#1877F2] hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30"
+              className="w-full bg-[#1877F2] hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98]"
               isLoading={authLoading}
           >
             Créer mon compte

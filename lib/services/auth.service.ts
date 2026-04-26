@@ -12,7 +12,7 @@ export interface RegisterCredentials {
   email: string;
   phone: string;
   password: string;
-  service?: string;
+  service?: string; // Doit idéalement être 'LETS_GO', 'SYNDICAT', etc. (défini par l'API)
   roles?: string[];
 }
 
@@ -99,22 +99,44 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   return data;
 }
 
-export async function register(credentials: RegisterCredentials): Promise<LoginResponse> {
+
+export async function register(
+    credentials: RegisterCredentials,
+    profileImage?: File // Optionnel: permet d'envoyer la photo de profil dès l'inscription
+): Promise<LoginResponse> {
+  const formData = new FormData();
+
+  // 1. On encapsule les données JSON dans un Blob pour forcer le Content-Type 'application/json'
+  const dataBlob = new Blob([JSON.stringify(credentials)], { type: 'application/json' });
+  formData.append('data', dataBlob);
+
+  // 2. Ajout de l'image de profil si fournie (comme défini dans le Swagger)
+  if (profileImage) {
+    formData.append('file', profileImage);
+  }
+
   const response = await fetch(`${AUTH_API_BASE_URL}/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(credentials),
+    body: formData,
   });
 
   if (!response.ok) {
     const txt = await response.text();
-    throw new Error(`Register failed (${response.status}): ${txt}`);
+    try {
+      // Tente de parser l'erreur de l'API (ex: "L'email existe déjà")
+      const err = JSON.parse(txt);
+      throw new Error(err.message || err.error || `Erreur d'inscription (${response.status})`);
+    } catch {
+      // Fallback si l'erreur n'est pas en JSON
+      throw new Error(`Register failed (${response.status}): ${txt}`);
+    }
   }
 
   const data = (await response.json()) as LoginResponse;
   saveAuthData(data);
   return data;
 }
+// ------------------------------------------------------------------
 
 export async function refreshAccessToken(): Promise<RefreshTokenResponse> {
   const refreshToken = getRefreshToken();
